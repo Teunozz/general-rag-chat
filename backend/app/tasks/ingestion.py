@@ -1,0 +1,294 @@
+from datetime import datetime
+
+from app.database import SessionLocal
+from app.models.source import Source, SourceStatus, SourceType
+from app.models.document import Document, DocumentStatus, DocumentChunk
+from app.services.ingestion import (
+    WebsiteIngestionService,
+    DocumentIngestionService,
+    RSSIngestionService,
+)
+from app.services.vector_store import get_vector_store
+from app.tasks import celery_app
+
+
+def _get_document_key(doc) -> str:
+    """Get a unique key for a document (URL or content hash for files)."""
+    # For documents with URLs (websites, RSS), use URL as key
+    # For uploaded files, use content_hash as key
+    return doc.url if doc.url else doc.content_hash
+
+
+@celery_app.task(bind=True, max_retries=3)
+def ingest_source(self, source_id: int, force_full: bool = False):
+    """Ingest content from a source using diff-based updates.
+
+    Args:
+        source_id: The source to ingest
+        force_full: If True, delete all existing content and re-ingest from scratch
+    """
+    db = SessionLocal()
+    vector_store = get_vector_store()
+
+    try:
+        source = db.query(Source).filter(Source.id == source_id).first()
+        if not source:
+            return {"error": f"Source {source_id} not found"}
+
+        # Update status
+        source.status = SourceStatus.PROCESSING
+        source.error_message = None
+        db.commit()
+
+        # Get appropriate ingestion service
+        if source.source_type == SourceType.WEBSITE:
+            service = WebsiteIngestionService()
+            config = {
+                "url": source.url,
+                "crawl_depth": source.crawl_depth,
+                "same_domain_only": source.crawl_same_domain_only,
+            }
+        elif source.source_type == SourceType.DOCUMENT:
+            service = DocumentIngestionService()
+            config = {"file_path": source.file_path}
+        elif source.source_type == SourceType.RSS:
+            service = RSSIngestionService()
+            config = {
+                "url": source.url,
+                "fetch_full_content": True,
+            }
+        else:
+            raise ValueError(f"Unknown source type: {source.source_type}")
+
+        # Process source - extract content
+        processed_docs = service.ingest(config)
+
+        # Build a map of new content: key -> processed_doc
+        new_docs_map = {}
+        for proc_doc in processed_docs:
+            key = proc_doc.url if proc_doc.url else proc_doc.content_hash
+            new_docs_map[key] = proc_doc
+
+        # Get existing documents for this source
+        existing_docs = db.query(Document).filter(Document.source_id == source_id).all()
+        existing_docs_map = {_get_document_key(doc): doc for doc in existing_docs}
+
+        # If force_full, delete everything and treat all as new
+        if force_full:
+            for doc in existing_docs:
+                # Delete chunks from DB
+                db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
+                # Delete vectors
+                vector_store.delete_by_document(doc.id)
+                # Delete document
+                db.delete(doc)
+            db.commit()
+            existing_docs_map = {}
+
+        # Compute diff
+        existing_keys = set(existing_docs_map.keys())
+        new_keys = set(new_docs_map.keys())
+
+        keys_to_add = new_keys - existing_keys  # New documents
+        keys_to_remove = existing_keys - new_keys  # Deleted documents
+        keys_to_check = existing_keys & new_keys  # Potentially updated documents
+
+        # Check for content changes in existing documents
+        keys_to_update = set()
+        keys_unchanged = set()
+        for key in keys_to_check:
+            existing_doc = existing_docs_map[key]
+            new_doc = new_docs_map[key]
+            if existing_doc.content_hash != new_doc.content_hash:
+                keys_to_update.add(key)
+            else:
+                keys_unchanged.add(key)
+
+        # Stats tracking
+        stats = {
+            "added": 0,
+            "updated": 0,
+            "removed": 0,
+            "unchanged": len(keys_unchanged),
+            "total_chunks": 0,
+        }
+
+        # Remove deleted documents
+        for key in keys_to_remove:
+            doc = existing_docs_map[key]
+            # Delete chunks from DB
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
+            # Delete vectors
+            vector_store.delete_by_document(doc.id)
+            # Delete document
+            db.delete(doc)
+            stats["removed"] += 1
+
+        if keys_to_remove:
+            db.commit()
+
+        # Update changed documents (delete old, add new)
+        for key in keys_to_update:
+            old_doc = existing_docs_map[key]
+            proc_doc = new_docs_map[key]
+
+            # Delete old chunks and vectors
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == old_doc.id).delete()
+            vector_store.delete_by_document(old_doc.id)
+
+            # Update document record
+            old_doc.title = proc_doc.title
+            old_doc.content_hash = proc_doc.content_hash
+            old_doc.word_count = len(proc_doc.content.split())
+            old_doc.chunk_count = len(proc_doc.chunks)
+            old_doc.published_at = proc_doc.published_at
+            old_doc.extra_data = proc_doc.metadata or {}
+            old_doc.status = DocumentStatus.PROCESSING
+            db.commit()
+
+            # Add new chunks
+            chunk_metadata = [
+                {"title": proc_doc.title, "url": proc_doc.url, "chunk_index": i}
+                for i in range(len(proc_doc.chunks))
+            ]
+            vector_ids = vector_store.add_chunks(
+                chunks=proc_doc.chunks,
+                document_id=old_doc.id,
+                source_id=source_id,
+                metadata=chunk_metadata,
+            )
+
+            # Save chunk references
+            for i, (chunk_content, vector_id) in enumerate(zip(proc_doc.chunks, vector_ids)):
+                chunk = DocumentChunk(
+                    document_id=old_doc.id,
+                    chunk_index=i,
+                    content=chunk_content,
+                    vector_id=vector_id,
+                )
+                db.add(chunk)
+
+            old_doc.status = DocumentStatus.INDEXED
+            old_doc.indexed_at = datetime.utcnow()
+            db.commit()
+
+            stats["updated"] += 1
+            stats["total_chunks"] += len(proc_doc.chunks)
+
+        # Add new documents
+        for key in keys_to_add:
+            proc_doc = new_docs_map[key]
+
+            # Create document
+            doc = Document(
+                source_id=source_id,
+                title=proc_doc.title,
+                url=proc_doc.url,
+                content_hash=proc_doc.content_hash,
+                word_count=len(proc_doc.content.split()),
+                chunk_count=len(proc_doc.chunks),
+                published_at=proc_doc.published_at,
+                extra_data=proc_doc.metadata or {},
+                status=DocumentStatus.PROCESSING,
+            )
+            db.add(doc)
+            db.commit()
+            db.refresh(doc)
+
+            # Add chunks to vector store
+            chunk_metadata = [
+                {"title": proc_doc.title, "url": proc_doc.url, "chunk_index": i}
+                for i in range(len(proc_doc.chunks))
+            ]
+            vector_ids = vector_store.add_chunks(
+                chunks=proc_doc.chunks,
+                document_id=doc.id,
+                source_id=source_id,
+                metadata=chunk_metadata,
+            )
+
+            # Save chunk references
+            for i, (chunk_content, vector_id) in enumerate(zip(proc_doc.chunks, vector_ids)):
+                chunk = DocumentChunk(
+                    document_id=doc.id,
+                    chunk_index=i,
+                    content=chunk_content,
+                    vector_id=vector_id,
+                )
+                db.add(chunk)
+
+            doc.status = DocumentStatus.INDEXED
+            doc.indexed_at = datetime.utcnow()
+            db.commit()
+
+            stats["added"] += 1
+            stats["total_chunks"] += len(proc_doc.chunks)
+
+        # Count chunks for unchanged documents
+        for key in keys_unchanged:
+            doc = existing_docs_map[key]
+            stats["total_chunks"] += doc.chunk_count or 0
+
+        # Update source
+        source.status = SourceStatus.READY
+        source.last_indexed_at = datetime.utcnow()
+        source.document_count = len(new_docs_map)
+        source.chunk_count = stats["total_chunks"]
+        db.commit()
+
+        return {
+            "source_id": source_id,
+            "added": stats["added"],
+            "updated": stats["updated"],
+            "removed": stats["removed"],
+            "unchanged": stats["unchanged"],
+            "total_documents": len(new_docs_map),
+            "total_chunks": stats["total_chunks"],
+        }
+
+    except Exception as e:
+        db.rollback()
+        # Update source with error
+        source = db.query(Source).filter(Source.id == source_id).first()
+        if source:
+            source.status = SourceStatus.ERROR
+            source.error_message = str(e)
+            db.commit()
+
+        # Retry with exponential backoff
+        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+
+    finally:
+        db.close()
+
+
+@celery_app.task
+def refresh_rss_feeds():
+    """Refresh all RSS feed sources."""
+    db = SessionLocal()
+    try:
+        # Get all RSS sources that are ready
+        sources = (
+            db.query(Source)
+            .filter(
+                Source.source_type == SourceType.RSS,
+                Source.status == SourceStatus.READY,
+            )
+            .all()
+        )
+
+        for source in sources:
+            # Check if refresh is needed based on interval
+            if source.last_indexed_at:
+                from datetime import timedelta
+                time_since_refresh = datetime.utcnow() - source.last_indexed_at
+                if time_since_refresh < timedelta(minutes=source.refresh_interval_minutes):
+                    continue
+
+            # Trigger re-ingestion
+            ingest_source.delay(source.id)
+
+        return {"refreshed": len(sources)}
+
+    finally:
+        db.close()
