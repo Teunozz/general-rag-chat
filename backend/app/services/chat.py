@@ -8,17 +8,26 @@ from app.services.vector_store import VectorStoreService, SearchResult, get_vect
 
 settings = get_settings()
 
-DEFAULT_SYSTEM_PROMPT = """You are a helpful assistant that answers questions based on the provided context.
+DEFAULT_SYSTEM_INSTRUCTIONS = """You are a helpful assistant that answers questions based on the provided context.
 
 Instructions:
 1. Answer the question based ONLY on the provided context
 2. If the context doesn't contain enough information to answer, say so clearly
 3. Cite your sources by mentioning the document title or URL when referencing information
 4. Be concise but thorough in your answers
-5. If asked about something not in the context, explain that you can only answer based on the available documents
+5. If asked about something not in the context, explain that you can only answer based on the available documents"""
 
-Context:
-{context}"""
+
+def build_system_prompt(instructions: str, context: str) -> str:
+    """Build the full system prompt with instructions and context.
+
+    If the instructions contain {context}, substitute it.
+    Otherwise, append the context section.
+    """
+    if "{context}" in instructions:
+        return instructions.format(context=context)
+    else:
+        return f"{instructions}\n\nContext:\n{context}"
 
 
 @dataclass
@@ -117,7 +126,8 @@ class ChatService:
         context = self._build_context(results) if results else "No relevant context found."
 
         # Build messages
-        system = (system_prompt or DEFAULT_SYSTEM_PROMPT).format(context=context)
+        instructions = system_prompt or DEFAULT_SYSTEM_INSTRUCTIONS
+        system = build_system_prompt(instructions, context)
         messages = [{"role": "system", "content": system}]
 
         # Add conversation history
@@ -159,7 +169,8 @@ class ChatService:
         context = self._build_context(results) if results else "No relevant context found."
 
         # Build messages
-        system = (system_prompt or DEFAULT_SYSTEM_PROMPT).format(context=context)
+        instructions = system_prompt or DEFAULT_SYSTEM_INSTRUCTIONS
+        system = build_system_prompt(instructions, context)
         messages = [{"role": "system", "content": system}]
 
         # Add conversation history

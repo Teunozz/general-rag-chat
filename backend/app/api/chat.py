@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, DbSession
+from app.models.settings import AppSettings
 from app.services.chat import get_chat_service, ChatSource
 
 router = APIRouter()
@@ -19,8 +20,8 @@ class ChatRequest(BaseModel):
     message: str
     source_ids: list[int] | None = None
     conversation_history: list[ChatMessage] | None = None
-    num_chunks: int = 5
-    temperature: float = 0.7
+    num_chunks: int | None = None  # Uses db setting if not specified
+    temperature: float | None = None  # Uses db setting if not specified
     stream: bool = False
 
 
@@ -38,8 +39,20 @@ class ChatResponse(BaseModel):
     sources: list[ChatSourceResponse]
 
 
+def get_chat_settings(db) -> tuple[int, float, str | None]:
+    """Get chat settings from database, with fallback defaults."""
+    settings = db.query(AppSettings).first()
+    if settings:
+        return (
+            settings.chat_context_chunks,
+            settings.chat_temperature,
+            settings.chat_system_prompt,
+        )
+    return 5, 0.7, None  # Fallback defaults
+
+
 @router.post("", response_model=ChatResponse)
-async def chat(request: ChatRequest, current_user: CurrentUser):
+async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
     """Send a chat message and get a response."""
     import traceback
 
@@ -48,6 +61,11 @@ async def chat(request: ChatRequest, current_user: CurrentUser):
             status_code=400,
             detail="Use /chat/stream endpoint for streaming responses",
         )
+
+    # Get settings from database
+    db_chunks, db_temperature, db_system_prompt = get_chat_settings(db)
+    num_chunks = request.num_chunks if request.num_chunks is not None else db_chunks
+    temperature = request.temperature if request.temperature is not None else db_temperature
 
     try:
         print(f"[Chat] Getting chat service...")
@@ -69,8 +87,9 @@ async def chat(request: ChatRequest, current_user: CurrentUser):
             query=request.message,
             source_ids=request.source_ids,
             conversation_history=history,
-            num_chunks=request.num_chunks,
-            temperature=request.temperature,
+            num_chunks=num_chunks,
+            temperature=temperature,
+            system_prompt=db_system_prompt,
         )
         print(f"[Chat] Got response with {len(response.sources)} sources")
 
@@ -95,7 +114,7 @@ async def chat(request: ChatRequest, current_user: CurrentUser):
 
 
 @router.post("/stream")
-async def chat_stream(request: ChatRequest, current_user: CurrentUser):
+async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSession):
     """Send a chat message and get a streaming response.
 
     Returns Server-Sent Events (SSE) stream with:
@@ -103,6 +122,11 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser):
     - data: {"type": "sources", "sources": [...]} for sources at the end
     - data: {"type": "done"} when complete
     """
+    # Get settings from database
+    db_chunks, db_temperature, db_system_prompt = get_chat_settings(db)
+    num_chunks = request.num_chunks if request.num_chunks is not None else db_chunks
+    temperature = request.temperature if request.temperature is not None else db_temperature
+
     chat_service = get_chat_service()
 
     # Convert conversation history
@@ -116,8 +140,9 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser):
                 query=request.message,
                 source_ids=request.source_ids,
                 conversation_history=history,
-                num_chunks=request.num_chunks,
-                temperature=request.temperature,
+                num_chunks=num_chunks,
+                temperature=temperature,
+                system_prompt=db_system_prompt,
             ):
                 if isinstance(item, str):
                     # Text chunk

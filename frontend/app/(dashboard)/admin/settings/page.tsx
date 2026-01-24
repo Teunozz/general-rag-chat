@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,13 +35,19 @@ interface Settings {
   chat_system_prompt: string;
 }
 
+interface ModelInfo {
+  id: string;
+  display_name: string;
+}
+
 interface SettingsOptions {
   llm_providers: string[];
   embedding_providers: string[];
-  openai_chat_models: string[];
-  anthropic_chat_models: string[];
+  openai_chat_models: ModelInfo[];
+  anthropic_chat_models: ModelInfo[];
   openai_embedding_models: string[];
   sentence_transformer_models: string[];
+  last_updated: string | null;
 }
 
 export default function SettingsPage() {
@@ -61,7 +67,7 @@ export default function SettingsPage() {
   });
 
   // Get available chat models based on selected LLM provider
-  const getChatModels = () => {
+  const getChatModels = (): ModelInfo[] => {
     if (!options) return [];
     switch (formData.llm_provider) {
       case "openai":
@@ -98,7 +104,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!options || !formData.llm_provider) return;
 
-    let validModels: string[] = [];
+    let validModels: ModelInfo[] = [];
     if (formData.llm_provider === "openai") {
       validModels = options.openai_chat_models;
     } else if (formData.llm_provider === "anthropic") {
@@ -106,8 +112,9 @@ export default function SettingsPage() {
     }
     // For ollama, any model name is valid
 
-    if (validModels.length > 0 && formData.chat_model && !validModels.includes(formData.chat_model)) {
-      setFormData((prev) => ({ ...prev, chat_model: validModels[0] }));
+    const validIds = validModels.map((m) => m.id);
+    if (validModels.length > 0 && formData.chat_model && !validIds.includes(formData.chat_model)) {
+      setFormData((prev) => ({ ...prev, chat_model: validModels[0].id }));
     }
   }, [formData.llm_provider, formData.chat_model, options]);
 
@@ -134,6 +141,13 @@ export default function SettingsPage() {
       refreshSettings();
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  const refreshModelsMutation = useMutation({
+    mutationFn: () => adminApi.refreshModels(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings-options"] });
     },
   });
 
@@ -263,10 +277,33 @@ export default function SettingsPage() {
           {/* LLM Configuration */}
           <Card>
             <CardHeader>
-              <CardTitle>LLM Configuration</CardTitle>
-              <CardDescription>
-                Configure your language model settings
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>LLM Configuration</CardTitle>
+                  <CardDescription>
+                    Configure your language model settings
+                    {options?.last_updated && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        (Models updated: {new Date(options.last_updated).toLocaleString()})
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshModelsMutation.mutate()}
+                  disabled={refreshModelsMutation.isPending}
+                >
+                  {refreshModelsMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">Refresh Models</span>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -303,8 +340,8 @@ export default function SettingsPage() {
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       {getChatModels().map((model) => (
-                        <option key={model} value={model}>
-                          {model}
+                        <option key={model.id} value={model.id}>
+                          {model.display_name}
                         </option>
                       ))}
                     </select>

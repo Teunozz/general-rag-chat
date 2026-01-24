@@ -10,6 +10,13 @@ from app.models.document import Document
 from app.models.recap import Recap
 from app.models.settings import AppSettings
 from app.services.vector_store import get_vector_store
+from app.services.model_registry import (
+    get_all_model_options,
+    refresh_all_models,
+    get_model_ids_for_provider,
+    OPENAI_EMBEDDING_MODELS,
+    SENTENCE_TRANSFORMER_MODELS,
+)
 
 router = APIRouter()
 
@@ -148,33 +155,8 @@ class SettingsUpdate(BaseModel):
     chat_system_prompt: str | None = None
 
 
-# Allowed models per provider
-OPENAI_EMBEDDING_MODELS = [
-    "text-embedding-3-small",
-    "text-embedding-3-large",
-    "text-embedding-ada-002",
-]
-SENTENCE_TRANSFORMER_MODELS = [
-    "all-MiniLM-L6-v2",
-    "all-mpnet-base-v2",
-    "paraphrase-MiniLM-L6-v2",
-    "all-MiniLM-L12-v2",
-    "multi-qa-MiniLM-L6-cos-v1",
-]
-OPENAI_CHAT_MODELS = [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
-]
-ANTHROPIC_CHAT_MODELS = [
-    "claude-3-5-sonnet-20241022",
-    "claude-3-5-haiku-20241022",
-    "claude-3-opus-20240229",
-    "claude-3-sonnet-20240229",
-    "claude-3-haiku-20240307",
-]
+# Embedding models are imported from model_registry
+# Chat models are fetched dynamically from provider APIs
 
 
 def validate_embedding_settings(provider: str, model: str) -> tuple[bool, str]:
@@ -193,11 +175,13 @@ def validate_embedding_settings(provider: str, model: str) -> tuple[bool, str]:
 def validate_llm_settings(provider: str, model: str) -> tuple[bool, str]:
     """Validate that LLM provider and model are compatible."""
     if provider == "openai":
-        if model not in OPENAI_CHAT_MODELS:
-            return False, f"Invalid OpenAI chat model '{model}'. Allowed: {', '.join(OPENAI_CHAT_MODELS)}"
+        valid_models = get_model_ids_for_provider("openai")
+        if model not in valid_models:
+            return False, f"Invalid OpenAI chat model '{model}'. Allowed: {', '.join(valid_models)}"
     elif provider == "anthropic":
-        if model not in ANTHROPIC_CHAT_MODELS:
-            return False, f"Invalid Anthropic chat model '{model}'. Allowed: {', '.join(ANTHROPIC_CHAT_MODELS)}"
+        valid_models = get_model_ids_for_provider("anthropic")
+        if model not in valid_models:
+            return False, f"Invalid Anthropic chat model '{model}'. Allowed: {', '.join(valid_models)}"
     elif provider == "ollama":
         # Ollama models are user-defined, so we allow any non-empty string
         if not model or not model.strip():
@@ -227,15 +211,17 @@ async def get_settings(admin_user: AdminUser, db: DbSession):
 
 @router.get("/settings/options")
 async def get_settings_options(admin_user: AdminUser):
-    """Get allowed values for settings dropdowns."""
-    return {
-        "llm_providers": ["openai", "anthropic", "ollama"],
-        "embedding_providers": ["openai", "sentence_transformers"],
-        "openai_chat_models": OPENAI_CHAT_MODELS,
-        "anthropic_chat_models": ANTHROPIC_CHAT_MODELS,
-        "openai_embedding_models": OPENAI_EMBEDDING_MODELS,
-        "sentence_transformer_models": SENTENCE_TRANSFORMER_MODELS,
-    }
+    """Get allowed values for settings dropdowns.
+
+    Chat models are fetched from provider APIs and cached for 1 hour.
+    """
+    return get_all_model_options()
+
+
+@router.post("/settings/refresh-models")
+async def refresh_models(admin_user: AdminUser):
+    """Force refresh of available models from provider APIs."""
+    return refresh_all_models()
 
 
 @router.put("/settings", response_model=SettingsResponse)

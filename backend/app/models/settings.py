@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, JSON, Boolean
+from sqlalchemy import DateTime, Float, Integer, String, Text, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -39,7 +39,7 @@ class AppSettings(Base):
 
     # Chat settings
     chat_context_chunks: Mapped[int] = mapped_column(Integer, default=5)
-    chat_temperature: Mapped[float] = mapped_column(Integer, default=0.7)
+    chat_temperature: Mapped[float] = mapped_column(Float, default=0.7)
     chat_system_prompt: Mapped[str] = mapped_column(
         Text,
         default="You are a helpful assistant that answers questions based on the provided context. Always cite your sources when possible.",
