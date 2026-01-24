@@ -113,19 +113,21 @@ def ingest_source(self, source_id: int, force_full: bool = False):
             "total_chunks": 0,
         }
 
-        # Remove deleted documents
-        for key in keys_to_remove:
-            doc = existing_docs_map[key]
-            # Delete chunks from DB
-            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
-            # Delete vectors
-            vector_store.delete_by_document(doc.id)
-            # Delete document
-            db.delete(doc)
-            stats["removed"] += 1
+        # Remove deleted documents (but NOT for RSS feeds - articles drop off feeds naturally)
+        # For RSS, we want to keep historical articles even if they're no longer in the feed
+        if source.source_type != SourceType.RSS:
+            for key in keys_to_remove:
+                doc = existing_docs_map[key]
+                # Delete chunks from DB
+                db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
+                # Delete vectors
+                vector_store.delete_by_document(doc.id)
+                # Delete document
+                db.delete(doc)
+                stats["removed"] += 1
 
-        if keys_to_remove:
-            db.commit()
+            if keys_to_remove:
+                db.commit()
 
         # Update changed documents (delete old, add new)
         for key in keys_to_update:
@@ -229,10 +231,25 @@ def ingest_source(self, source_id: int, force_full: bool = False):
             doc = existing_docs_map[key]
             stats["total_chunks"] += doc.chunk_count or 0
 
+        # For RSS feeds, count chunks for historical articles we're keeping
+        if source.source_type == SourceType.RSS:
+            for key in keys_to_remove:
+                doc = existing_docs_map[key]
+                stats["total_chunks"] += doc.chunk_count or 0
+            stats["unchanged"] += len(keys_to_remove)
+
+        # Calculate total document count
+        # For RSS: existing docs (minus removed, but we don't remove for RSS) + new docs
+        # For others: only what's in new_docs_map (after removals)
+        if source.source_type == SourceType.RSS:
+            total_docs = len(existing_docs_map) + len(keys_to_add)
+        else:
+            total_docs = len(new_docs_map)
+
         # Update source
         source.status = SourceStatus.READY
         source.last_indexed_at = datetime.utcnow()
-        source.document_count = len(new_docs_map)
+        source.document_count = total_docs
         source.chunk_count = stats["total_chunks"]
         db.commit()
 
@@ -242,7 +259,7 @@ def ingest_source(self, source_id: int, force_full: bool = False):
             "updated": stats["updated"],
             "removed": stats["removed"],
             "unchanged": stats["unchanged"],
-            "total_documents": len(new_docs_map),
+            "total_documents": total_docs,
             "total_chunks": stats["total_chunks"],
         }
 
