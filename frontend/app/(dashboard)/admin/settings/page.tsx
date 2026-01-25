@@ -13,6 +13,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RequireAdmin } from "@/lib/auth";
 import { adminApi, sourcesApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
@@ -55,6 +65,11 @@ export default function SettingsPage() {
   const { refreshSettings } = useTheme();
   const [formData, setFormData] = useState<Partial<Settings>>({});
   const [saved, setSaved] = useState(false);
+  const [showEmbeddingWarning, setShowEmbeddingWarning] = useState(false);
+  const [originalEmbeddingSettings, setOriginalEmbeddingSettings] = useState<{
+    provider: string;
+    model: string;
+  } | null>(null);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
@@ -97,8 +112,15 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setFormData(settings);
+      // Store original embedding settings to detect changes
+      if (originalEmbeddingSettings === null) {
+        setOriginalEmbeddingSettings({
+          provider: settings.embedding_provider,
+          model: settings.embedding_model,
+        });
+      }
     }
-  }, [settings]);
+  }, [settings, originalEmbeddingSettings]);
 
   // Reset chat model when LLM provider changes to first valid option
   useEffect(() => {
@@ -173,9 +195,31 @@ export default function SettingsPage() {
     }));
   };
 
+  const hasEmbeddingSettingsChanged = () => {
+    if (!originalEmbeddingSettings) return false;
+    return (
+      formData.embedding_provider !== originalEmbeddingSettings.provider ||
+      formData.embedding_model !== originalEmbeddingSettings.model
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (hasEmbeddingSettingsChanged()) {
+      setShowEmbeddingWarning(true);
+    } else {
+      updateMutation.mutate(formData);
+    }
+  };
+
+  const handleConfirmEmbeddingChange = () => {
+    setShowEmbeddingWarning(false);
     updateMutation.mutate(formData);
+    // Update original settings after save so subsequent saves don't re-trigger
+    setOriginalEmbeddingSettings({
+      provider: formData.embedding_provider || "",
+      model: formData.embedding_model || "",
+    });
   };
 
   if (isLoading) {
@@ -553,6 +597,27 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showEmbeddingWarning} onOpenChange={setShowEmbeddingWarning}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Change Embedding Model?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Changing the embedding model will make all existing document vectors
+                incompatible. Search results may be incorrect or empty until you
+                re-chunk all sources. After saving, you&apos;ll need to click
+                &quot;Re-chunk All Sources&quot; to re-process all content with the new
+                embedding model.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmEmbeddingChange}>
+                Continue and Save
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </RequireAdmin>
   );

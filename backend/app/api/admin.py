@@ -162,11 +162,13 @@ class SettingsUpdate(BaseModel):
 def validate_embedding_settings(provider: str, model: str) -> tuple[bool, str]:
     """Validate that embedding provider and model are compatible."""
     if provider == "openai":
-        if model not in OPENAI_EMBEDDING_MODELS:
-            return False, f"Invalid OpenAI embedding model '{model}'. Allowed: {', '.join(OPENAI_EMBEDDING_MODELS)}"
+        valid_ids = [m["id"] for m in OPENAI_EMBEDDING_MODELS]
+        if model not in valid_ids:
+            return False, f"Invalid OpenAI embedding model '{model}'. Allowed: {', '.join(valid_ids)}"
     elif provider == "sentence_transformers":
-        if model not in SENTENCE_TRANSFORMER_MODELS:
-            return False, f"Invalid Sentence Transformers model '{model}'. Allowed: {', '.join(SENTENCE_TRANSFORMER_MODELS)}"
+        valid_ids = [m["id"] for m in SENTENCE_TRANSFORMER_MODELS]
+        if model not in valid_ids:
+            return False, f"Invalid Sentence Transformers model '{model}'. Allowed: {', '.join(valid_ids)}"
     else:
         return False, f"Invalid embedding provider '{provider}'. Allowed: openai, sentence_transformers"
     return True, ""
