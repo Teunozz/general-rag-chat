@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
@@ -29,13 +30,14 @@ const adminNavigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user, isAdmin, logout } = useAuth();
+  const { settings } = useTheme();
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card">
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/chat" className="flex items-center gap-2">
           <FileText className="h-6 w-6 text-primary" />
-          <span className="font-semibold">RAG System</span>
+          <span className="font-semibold">{settings?.app_name || "RAG System"}</span>
         </Link>
       </div>
 
