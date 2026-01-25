@@ -5,6 +5,11 @@ from functools import lru_cache
 
 from app.config import get_settings
 from app.services.llm import LLMService, get_llm_service
+from app.services.query_enrichment import (
+    QueryEnrichmentService,
+    get_query_enrichment_service,
+    EnrichmentResult,
+)
 from app.services.vector_store import VectorStoreService, SearchResult, get_vector_store
 
 settings = get_settings()
@@ -69,9 +74,24 @@ class ChatService:
         self,
         llm_service: LLMService | None = None,
         vector_store: VectorStoreService | None = None,
+        query_enrichment_service: QueryEnrichmentService | None = None,
     ):
         self.llm = llm_service or get_llm_service()
         self.vector_store = vector_store or get_vector_store()
+        self.query_enrichment = query_enrichment_service or get_query_enrichment_service()
+
+    def _enrich_query(
+        self,
+        query: str,
+        conversation_history: list[dict] | None = None,
+        custom_prompt: str | None = None,
+    ) -> EnrichmentResult:
+        """Enrich the query for better retrieval."""
+        return self.query_enrichment.enrich_query(
+            query=query,
+            conversation_history=conversation_history,
+            custom_prompt=custom_prompt,
+        )
 
     def _build_context(self, results: list[SearchResult]) -> str:
         """Build context string from search results."""
@@ -128,11 +148,25 @@ class ChatService:
         num_chunks: int = 5,
         temperature: float = 0.7,
         system_prompt: str | None = None,
+        enable_enrichment: bool = False,
+        enrichment_prompt: str | None = None,
     ) -> ChatResponse:
         """Generate a chat response using RAG."""
-        # Search for relevant chunks
+        # Enrich query if enabled
+        search_query = query
+        if enable_enrichment:
+            result = self._enrich_query(
+                query=query,
+                conversation_history=conversation_history,
+                custom_prompt=enrichment_prompt,
+            )
+            if result.success:
+                search_query = result.enriched_query
+                print(f"[Chat] Enriched query: {query!r} -> {search_query!r}")
+
+        # Search for relevant chunks using (possibly enriched) query
         results = self.vector_store.search(
-            query=query,
+            query=search_query,
             limit=num_chunks,
             source_ids=source_ids,
         )
@@ -173,14 +207,28 @@ class ChatService:
         num_chunks: int = 5,
         temperature: float = 0.7,
         system_prompt: str | None = None,
+        enable_enrichment: bool = False,
+        enrichment_prompt: str | None = None,
     ) -> AsyncGenerator[str | dict, None]:
         """Generate a streaming chat response using RAG.
 
         Yields chunks of the answer (str), then yields a dict with sources and cited_indices at the end.
         """
-        # Search for relevant chunks
+        # Enrich query if enabled
+        search_query = query
+        if enable_enrichment:
+            result = self._enrich_query(
+                query=query,
+                conversation_history=conversation_history,
+                custom_prompt=enrichment_prompt,
+            )
+            if result.success:
+                search_query = result.enriched_query
+                print(f"[Chat] Enriched query: {query!r} -> {search_query!r}")
+
+        # Search for relevant chunks using (possibly enriched) query
         results = self.vector_store.search(
-            query=query,
+            query=search_query,
             limit=num_chunks,
             source_ids=source_ids,
         )

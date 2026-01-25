@@ -43,6 +43,8 @@ interface Settings {
   chat_context_chunks: number;
   chat_temperature: number;
   chat_system_prompt: string;
+  query_enrichment_enabled: boolean;
+  query_enrichment_prompt: string | null;
 }
 
 interface ModelInfo {
@@ -58,6 +60,7 @@ interface SettingsOptions {
   openai_embedding_models: string[];
   sentence_transformer_models: string[];
   last_updated: string | null;
+  default_enrichment_prompt: string;
 }
 
 export default function SettingsPage() {
@@ -190,8 +193,8 @@ export default function SettingsPage() {
         type === "checkbox"
           ? (e.target as HTMLInputElement).checked
           : type === "number"
-          ? parseFloat(value)
-          : value,
+            ? parseFloat(value)
+            : value,
     }));
   };
 
@@ -520,9 +523,71 @@ export default function SettingsPage() {
                   name="chat_system_prompt"
                   value={formData.chat_system_prompt || ""}
                   onChange={handleChange}
-                  rows={4}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  rows={10}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Query Enrichment */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Query Enrichment</CardTitle>
+              <CardDescription>
+                Improve search results by rewriting queries using conversation context
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="query_enrichment_enabled"
+                  name="query_enrichment_enabled"
+                  checked={formData.query_enrichment_enabled ?? true}
+                  onChange={handleChange}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="query_enrichment_enabled">
+                  Enable Query Enrichment
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                When enabled, the LLM will rewrite your search queries to be more specific
+                by expanding references like &quot;it&quot; or &quot;that&quot; using conversation history.
+                For example, &quot;What about the second point?&quot; becomes &quot;Explain the second
+                point about authentication tokens mentioned earlier&quot;.
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="query_enrichment_prompt">
+                    Enrichment Prompt
+                  </Label>
+                  {formData.query_enrichment_prompt && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData((prev) => ({ ...prev, query_enrichment_prompt: null }))}
+                      disabled={!formData.query_enrichment_enabled}
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Reset to default
+                    </Button>
+                  )}
+                </div>
+                <textarea
+                  id="query_enrichment_prompt"
+                  name="query_enrichment_prompt"
+                  value={formData.query_enrichment_prompt || options?.default_enrichment_prompt || ""}
+                  onChange={handleChange}
+                  rows={8}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
+                  disabled={!formData.query_enrichment_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  This prompt instructs the LLM how to rewrite queries for better search results.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -17,6 +17,7 @@ from app.services.model_registry import (
     OPENAI_EMBEDDING_MODELS,
     SENTENCE_TRANSFORMER_MODELS,
 )
+from app.services.query_enrichment import DEFAULT_ENRICHMENT_PROMPT
 
 router = APIRouter()
 
@@ -129,6 +130,8 @@ class SettingsResponse(BaseModel):
     chat_context_chunks: int
     chat_temperature: float
     chat_system_prompt: str
+    query_enrichment_enabled: bool
+    query_enrichment_prompt: str | None
 
     class Config:
         from_attributes = True
@@ -153,6 +156,8 @@ class SettingsUpdate(BaseModel):
     chat_context_chunks: int | None = None
     chat_temperature: float | None = None
     chat_system_prompt: str | None = None
+    query_enrichment_enabled: bool | None = None
+    query_enrichment_prompt: str | None = None
 
 
 # Embedding models are imported from model_registry
@@ -217,7 +222,9 @@ async def get_settings_options(admin_user: AdminUser):
 
     Chat models are fetched from provider APIs and cached for 1 hour.
     """
-    return get_all_model_options()
+    options = get_all_model_options()
+    options["default_enrichment_prompt"] = DEFAULT_ENRICHMENT_PROMPT
+    return options
 
 
 @router.post("/settings/refresh-models")

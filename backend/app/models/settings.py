@@ -45,6 +45,10 @@ class AppSettings(Base):
         default="You are a helpful assistant that answers questions based on the provided context. Always cite your sources when possible.",
     )
 
+    # Query enrichment settings
+    query_enrichment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    query_enrichment_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Additional config as JSON
     extra_config: Mapped[dict] = mapped_column(JSON, default=dict)
 
