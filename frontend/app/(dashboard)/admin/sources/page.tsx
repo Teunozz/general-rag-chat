@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,9 @@ interface Source {
   status: string;
   url: string | null;
   file_path: string | null;
+  crawl_depth: number;
+  crawl_same_domain_only?: boolean;
+  refresh_interval_minutes: number;
   document_count: number;
   chunk_count: number;
   last_indexed_at: string | null;
@@ -69,6 +73,7 @@ export default function SourcesPage() {
   const [addType, setAddType] = useState<"website" | "rss" | "document" | null>(
     null
   );
+  const [editingSource, setEditingSource] = useState<Source | null>(null);
 
   const { data: sources, isLoading } = useQuery({
     queryKey: ["sources"],
@@ -87,6 +92,15 @@ export default function SourcesPage() {
     mutationFn: (id: number) => sourcesApi.reindex(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sources"] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) =>
+      sourcesApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sources"] });
+      setEditingSource(null);
     },
   });
 
@@ -161,6 +175,33 @@ export default function SourcesPage() {
             </Card>
           )}
 
+          {editingSource && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Edit Source</CardTitle>
+                <CardDescription>
+                  Update source settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EditSourceForm
+                  source={editingSource}
+                  onCancel={() => setEditingSource(null)}
+                  onSubmit={(data) =>
+                    updateMutation.mutate({ id: editingSource.id, data })
+                  }
+                  isSubmitting={updateMutation.isPending}
+                  error={
+                    updateMutation.error
+                      ? (updateMutation.error as { response?: { data?: { detail?: string } } })
+                          .response?.data?.detail || "Failed to update source"
+                      : undefined
+                  }
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -221,8 +262,17 @@ export default function SourcesPage() {
                         <Button
                           variant="outline"
                           size="icon"
+                          onClick={() => setEditingSource(source)}
+                          title="Edit source"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
                           onClick={() => reindexMutation.mutate(source.id)}
                           disabled={reindexMutation.isPending}
+                          title="Reindex source"
                         >
                           <RefreshCw className="h-4 w-4" />
                         </Button>
@@ -231,6 +281,7 @@ export default function SourcesPage() {
                           size="icon"
                           onClick={() => deleteMutation.mutate(source.id)}
                           disabled={deleteMutation.isPending}
+                          title="Delete source"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -353,6 +404,154 @@ function AddSourceForm({
             </>
           ) : (
             "Add Source"
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EditSourceForm({
+  source,
+  onCancel,
+  onSubmit,
+  isSubmitting,
+  error,
+}: {
+  source: Source;
+  onCancel: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isSubmitting: boolean;
+  error?: string;
+}) {
+  const [name, setName] = useState(source.name);
+  const [description, setDescription] = useState(source.description || "");
+  const [crawlDepth, setCrawlDepth] = useState(source.crawl_depth);
+  const [crawlSameDomainOnly, setCrawlSameDomainOnly] = useState(
+    source.crawl_same_domain_only ?? true
+  );
+  const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState(
+    source.refresh_interval_minutes
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const data: Record<string, unknown> = {
+      name,
+      description: description || null,
+    };
+
+    if (source.source_type === "website") {
+      data.crawl_depth = crawlDepth;
+      data.crawl_same_domain_only = crawlSameDomainOnly;
+    } else if (source.source_type === "rss") {
+      data.refresh_interval_minutes = refreshIntervalMinutes;
+    }
+
+    onSubmit(data);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+        <span className="p-1.5 bg-muted rounded">
+          {sourceTypeIcons[source.source_type]}
+        </span>
+        <span className="capitalize">{source.source_type}</span>
+        {source.url && (
+          <span className="truncate max-w-md">({source.url})</span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-name">Name</Label>
+        <Input
+          id="edit-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-description">Description</Label>
+        <Input
+          id="edit-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Optional description"
+        />
+      </div>
+
+      {source.source_type === "website" && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="edit-crawl-depth">Crawl Depth</Label>
+            <Input
+              id="edit-crawl-depth"
+              type="number"
+              min={1}
+              max={10}
+              value={crawlDepth}
+              onChange={(e) => setCrawlDepth(parseInt(e.target.value) || 1)}
+            />
+            <p className="text-xs text-muted-foreground">
+              How many levels deep to crawl links (1 = only the specified URL)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="edit-same-domain"
+              type="checkbox"
+              checked={crawlSameDomainOnly}
+              onChange={(e) => setCrawlSameDomainOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <Label htmlFor="edit-same-domain" className="font-normal">
+              Only crawl links on the same domain
+            </Label>
+          </div>
+        </>
+      )}
+
+      {source.source_type === "rss" && (
+        <div className="space-y-2">
+          <Label htmlFor="edit-refresh-interval">Refresh Interval (minutes)</Label>
+          <Input
+            id="edit-refresh-interval"
+            type="number"
+            min={5}
+            value={refreshIntervalMinutes}
+            onChange={(e) =>
+              setRefreshIntervalMinutes(parseInt(e.target.value) || 60)
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            How often to check for new RSS items
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
           )}
         </Button>
       </div>
