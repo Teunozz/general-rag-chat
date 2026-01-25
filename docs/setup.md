@@ -25,10 +25,12 @@ cp .env.example .env
 ### 2. Start Services
 
 ```bash
-# Start all services
-docker-compose up -d
+# Using Makefile (recommended)
+make up       # Start all services
+make logs     # View logs
 
-# View logs
+# Or manually
+docker-compose up -d
 docker-compose logs -f
 ```
 
@@ -136,22 +138,32 @@ curl -X POST http://localhost:8000/api/sources/rss \
 
 ### Running Locally (without Docker)
 
-#### Backend
+Using Makefile (recommended):
 ```bash
-cd backend
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
+make venv            # Create Python virtual environment (one time)
+make install         # Install all dependencies
+make infra           # Start only postgres/redis/qdrant in Docker
+
+# Run in separate terminals:
+make dev-backend     # Backend server
+make dev-frontend    # Frontend server
+make dev-worker      # Celery worker (optional)
 ```
 
-#### Frontend
+Or manually:
 ```bash
+# Backend
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate
+cd backend && pip install -e ".[dev]"
+uvicorn app.main:app --reload
+
+# Frontend
 cd frontend
 npm install
 npm run dev
-```
 
-#### Celery Worker
-```bash
+# Celery Worker
 cd backend
 celery -A app.tasks.celery_app worker --loglevel=info
 ```
@@ -159,6 +171,10 @@ celery -A app.tasks.celery_app worker --loglevel=info
 ### Database Migrations
 
 ```bash
+make migrate                        # Run migrations
+make migrate-new MSG="Description"  # Create new migration
+
+# Or manually
 cd backend
 alembic revision --autogenerate -m "Description"
 alembic upgrade head
@@ -265,25 +281,28 @@ POST /api/recaps/generate
 ### Viewing Logs
 
 ```bash
-# All services
-docker-compose logs -f
+# Using Makefile
+make logs            # All services
+make logs-backend    # Backend only
+make logs-worker     # Celery worker
+make logs-frontend   # Frontend
 
-# Specific service
+# Or manually
+docker-compose logs -f
 docker-compose logs -f backend
-docker-compose logs -f celery-worker
-docker-compose logs -f frontend
 ```
 
 ### Resetting Data
 
 ```bash
-# Stop services
+# Using Makefile
+make down            # Stop services
+make clean           # Stop and remove volumes (WARNING: deletes all data)
+make up              # Start fresh
+
+# Or manually
 docker-compose down
-
-# Remove volumes (WARNING: deletes all data)
 docker-compose down -v
-
-# Start fresh
 docker-compose up -d
 ```
 

@@ -8,44 +8,43 @@ A full-stack Retrieval Augmented Generation (RAG) system for building a personal
 
 **Stack**: Python FastAPI backend, Next.js 14 frontend, PostgreSQL, Qdrant (vectors), Redis, Celery
 
+## Setup
+
+```bash
+# Using Makefile (recommended)
+make venv            # Create Python virtual environment
+make install         # Install backend + frontend dependencies
+make up              # Start all services
+
+# Or manually
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate
+cd backend && pip install -e ".[dev]"
+cd frontend && npm install
+docker-compose up -d
+```
+
 ## Common Commands
 
-### Backend
+Use `make help` to see all available commands. Key targets:
+
 ```bash
-# Install dependencies
-pip install -e ".[dev]"
+make up              # Start all Docker services
+make down            # Stop services
+make logs            # Follow all logs
+make infra           # Start only postgres/redis/qdrant (for local dev)
 
-# Run dev server
-uvicorn app.main:app --reload
+make dev-backend     # Run backend locally (uvicorn)
+make dev-frontend    # Run frontend locally (next dev)
+make dev-worker      # Run Celery worker locally
 
-# Run Celery worker/beat
-celery -A app.tasks.celery_app worker --loglevel=info
-celery -A app.tasks.celery_app beat --loglevel=info
+make install         # Install all dependencies
+make migrate         # Run database migrations
+make migrate-new MSG="description"  # Create new migration
 
-# Database migrations
-alembic revision --autogenerate -m "Description"
-alembic upgrade head
-
-# Lint/format
-black .
-ruff check .
-
-# Tests
-pytest
-```
-
-### Frontend
-```bash
-npm run dev     # Development server
-npm run build   # Production build
-npm run lint    # ESLint
-```
-
-### Docker
-```bash
-docker-compose up -d       # Start all services
-docker-compose down        # Stop services
-docker-compose logs -f     # View logs
+make lint            # Run all linters
+make format          # Format Python code
+make test            # Run tests
 ```
 
 ## Architecture
