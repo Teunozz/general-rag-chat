@@ -1,24 +1,26 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ExternalLink } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { chatApi, conversationsApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
+import { SourcesList } from "@/components/chat/sources-list";
 
 interface Source {
+  source_index: number;
   document_id: number;
   source_id: number;
   title: string | null;
   url: string | null;
   content_preview: string;
   score: number;
+  cited: boolean;
 }
 
 interface Message {
@@ -78,7 +80,12 @@ export default function ChatPage() {
       const loadedMessages: Message[] = conversation.messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
-        sources: msg.sources || undefined,
+        // Handle backward compatibility for old messages without source_index/cited
+        sources: msg.sources?.map((s: any, idx: number) => ({
+          ...s,
+          source_index: s.source_index ?? idx + 1,
+          cited: s.cited ?? true, // Assume cited for old data
+        })) || undefined,
       }));
       setMessages(loadedMessages);
       setActiveConversationId(conversationId);
@@ -195,37 +202,7 @@ export default function ChatPage() {
                     </div>
 
                     {message.sources && message.sources.length > 0 && (
-                      <div className="mt-4 border-t pt-3">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide opacity-70">
-                          Sources
-                        </p>
-                        <div className="space-y-2">
-                          {message.sources.map((source, idx) => (
-                            <Card key={idx} className="p-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">
-                                    {source.title || "Untitled"}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground line-clamp-2">
-                                    {source.content_preview}
-                                  </p>
-                                </div>
-                                {source.url && (
-                                  <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="shrink-0 text-primary hover:text-primary/80"
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </a>
-                                )}
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
+                      <SourcesList sources={message.sources} />
                     )}
                   </div>
                 </div>

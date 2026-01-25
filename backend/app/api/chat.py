@@ -34,17 +34,20 @@ class ChatRequest(BaseModel):
 
 
 class ChatSourceResponse(BaseModel):
+    source_index: int  # The [N] number used in context
     document_id: int
     source_id: int
     title: str | None
     url: str | None
     content_preview: str
     score: float
+    cited: bool  # Whether this source was cited in the response
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[ChatSourceResponse]
+    cited_indices: list[int]  # List of source indices that were cited
     conversation_id: int | None = None  # Returned when using conversation persistence
 
 
@@ -238,12 +241,14 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
             # Save assistant message with sources
             sources_data = [
                 {
+                    "source_index": s.source_index,
                     "document_id": s.document_id,
                     "source_id": s.source_id,
                     "title": s.title,
                     "url": s.url,
                     "content_preview": s.content_preview,
                     "score": s.score,
+                    "cited": s.cited,
                 }
                 for s in response.sources
             ]
@@ -267,15 +272,18 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
             answer=response.answer,
             sources=[
                 ChatSourceResponse(
+                    source_index=s.source_index,
                     document_id=s.document_id,
                     source_id=s.source_id,
                     title=s.title,
                     url=s.url,
                     content_preview=s.content_preview,
                     score=s.score,
+                    cited=s.cited,
                 )
                 for s in response.sources
             ],
+            cited_indices=response.cited_indices,
             conversation_id=conversation.id if conversation else None,
         )
     except Exception as e:
@@ -352,20 +360,26 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
                     full_response += item
                     data = json.dumps({"type": "chunk", "content": item})
                     yield f"data: {data}\n\n"
-                elif isinstance(item, list):
-                    # Sources list
+                elif isinstance(item, dict):
+                    # Sources dict with cited_indices
                     sources_data = [
                         {
+                            "source_index": s.source_index,
                             "document_id": s.document_id,
                             "source_id": s.source_id,
                             "title": s.title,
                             "url": s.url,
                             "content_preview": s.content_preview,
                             "score": s.score,
+                            "cited": s.cited,
                         }
-                        for s in item
+                        for s in item["sources"]
                     ]
-                    data = json.dumps({"type": "sources", "sources": sources_data})
+                    data = json.dumps({
+                        "type": "sources",
+                        "sources": sources_data,
+                        "cited_indices": item["cited_indices"],
+                    })
                     yield f"data: {data}\n\n"
 
             # Save messages to database if using conversation persistence

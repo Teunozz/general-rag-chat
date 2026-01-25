@@ -1,3 +1,4 @@
+import re
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from functools import lru_cache
@@ -13,9 +14,17 @@ DEFAULT_SYSTEM_INSTRUCTIONS = """You are a helpful assistant that answers questi
 Instructions:
 1. Answer the question based ONLY on the provided context
 2. If the context doesn't contain enough information to answer, say so clearly
-3. Cite your sources by mentioning the document title or URL when referencing information
-4. Be concise but thorough in your answers
-5. If asked about something not in the context, explain that you can only answer based on the available documents"""
+3. ALWAYS cite your sources using bracketed numbers like [1], [2] that match the source numbers provided
+4. Place citations after relevant information, e.g., "The answer is 42 [1]."
+5. Be concise but thorough in your answers
+6. If asked about something not in the context, explain that you can only answer based on the available documents"""
+
+
+def extract_citations(response: str) -> set[int]:
+    """Extract cited source numbers from the response."""
+    pattern = r'\[(\d+)\]'
+    matches = re.findall(pattern, response)
+    return {int(m) for m in matches if int(m) > 0}
 
 
 def build_system_prompt(instructions: str, context: str) -> str:
@@ -34,12 +43,14 @@ def build_system_prompt(instructions: str, context: str) -> str:
 class ChatSource:
     """Source citation for a chat response."""
 
+    source_index: int  # The [N] number used in context
     document_id: int
     source_id: int
     title: str | None
     url: str | None
     content_preview: str
     score: float
+    cited: bool = False  # Whether this source was cited
 
 
 @dataclass
@@ -48,6 +59,7 @@ class ChatResponse:
 
     answer: str
     sources: list[ChatSource]
+    cited_indices: list[int]  # List of source indices that were cited
 
 
 class ChatService:
@@ -79,19 +91,21 @@ class ChatService:
 
         return "\n\n---\n\n".join(context_parts)
 
-    def _build_sources(self, results: list[SearchResult]) -> list[ChatSource]:
-        """Build source citations from search results."""
-        seen = set()
+    def _build_sources(
+        self, results: list[SearchResult], cited_indices: set[int] | None = None
+    ) -> list[ChatSource]:
+        """Build source citations from search results.
+
+        Each chunk is shown as a separate source so indices match what the LLM cited.
+        Multiple chunks from the same document will show the same title/URL.
+        """
+        cited_indices = cited_indices or set()
         sources = []
 
-        for result in results:
-            # Deduplicate by document_id
-            if result.document_id in seen:
-                continue
-            seen.add(result.document_id)
-
+        for i, result in enumerate(results, 1):
             sources.append(
                 ChatSource(
+                    source_index=i,
                     document_id=result.document_id,
                     source_id=result.source_id,
                     title=result.metadata.get("title"),
@@ -100,6 +114,7 @@ class ChatService:
                     if len(result.content) > 200
                     else result.content,
                     score=result.score,
+                    cited=(i in cited_indices),
                 )
             )
 
@@ -140,10 +155,15 @@ class ChatService:
         # Generate response
         answer = self.llm.chat(messages, temperature=temperature)
 
-        # Build sources
-        sources = self._build_sources(results)
+        # Extract citations and build sources
+        cited_indices = extract_citations(answer)
+        # Filter to valid indices only
+        valid_cited = {i for i in cited_indices if 1 <= i <= len(results)}
+        sources = self._build_sources(results, valid_cited)
 
-        return ChatResponse(answer=answer, sources=sources)
+        return ChatResponse(
+            answer=answer, sources=sources, cited_indices=sorted(valid_cited)
+        )
 
     async def chat_stream(
         self,
@@ -153,10 +173,10 @@ class ChatService:
         num_chunks: int = 5,
         temperature: float = 0.7,
         system_prompt: str | None = None,
-    ) -> AsyncGenerator[str | list[ChatSource], None]:
+    ) -> AsyncGenerator[str | dict, None]:
         """Generate a streaming chat response using RAG.
 
-        Yields chunks of the answer, then yields the sources list at the end.
+        Yields chunks of the answer (str), then yields a dict with sources and cited_indices at the end.
         """
         # Search for relevant chunks
         results = self.vector_store.search(
@@ -180,13 +200,19 @@ class ChatService:
         # Add current query
         messages.append({"role": "user", "content": query})
 
-        # Stream response
+        # Stream response and buffer full text
+        full_response = ""
         async for chunk in self.llm.chat_stream(messages, temperature=temperature):
+            full_response += chunk
             yield chunk
 
-        # Yield sources at the end
-        sources = self._build_sources(results)
-        yield sources
+        # Extract citations and build sources
+        cited_indices = extract_citations(full_response)
+        valid_cited = {i for i in cited_indices if 1 <= i <= len(results)}
+        sources = self._build_sources(results, valid_cited)
+
+        # Yield sources and citation info at the end
+        yield {"sources": sources, "cited_indices": sorted(valid_cited)}
 
 
 @lru_cache
