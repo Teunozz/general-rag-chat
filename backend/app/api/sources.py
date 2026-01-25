@@ -9,6 +9,7 @@ from pydantic import BaseModel, HttpUrl
 from app.api.deps import AdminUser, CurrentUser, DbSession
 from app.config import get_settings
 from app.models.source import Source, SourceStatus, SourceType
+from app.services.security import sanitize_filename
 
 router = APIRouter()
 settings = get_settings()
@@ -160,9 +161,10 @@ async def create_document_source(
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate unique filename
+    # Generate unique filename with sanitization
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    safe_filename = f"{timestamp}_{file.filename}"
+    original_filename = sanitize_filename(file.filename or "document")
+    safe_filename = f"{timestamp}_{original_filename}"
     file_path = upload_dir / safe_filename
 
     with open(file_path, "wb") as buffer:

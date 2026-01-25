@@ -5,6 +5,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
+from app.services.security import is_safe_url
 
 
 class WebsiteIngestionService(BaseIngestionService):
@@ -25,6 +26,11 @@ class WebsiteIngestionService(BaseIngestionService):
 
         if not url:
             raise ValueError("URL is required for website ingestion")
+
+        # SSRF protection: validate URL before fetching
+        is_safe, error_msg = is_safe_url(url)
+        if not is_safe:
+            raise ValueError(f"URL validation failed: {error_msg}")
 
         self.visited_urls.clear()
         base_domain = urlparse(url).netloc
@@ -51,6 +57,12 @@ class WebsiteIngestionService(BaseIngestionService):
             return
 
         self.visited_urls.add(url)
+
+        # SSRF protection: validate each URL before fetching
+        is_safe, error_msg = is_safe_url(url)
+        if not is_safe:
+            print(f"Skipping unsafe URL {url}: {error_msg}")
+            return
 
         # Check domain
         if same_domain_only and urlparse(url).netloc != base_domain:

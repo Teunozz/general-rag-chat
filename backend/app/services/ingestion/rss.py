@@ -6,6 +6,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
+from app.services.security import is_safe_url
 
 
 class RSSIngestionService(BaseIngestionService):
@@ -26,6 +27,11 @@ class RSSIngestionService(BaseIngestionService):
 
         if not url:
             raise ValueError("URL is required for RSS ingestion")
+
+        # SSRF protection: validate URL before fetching
+        is_safe, error_msg = is_safe_url(url)
+        if not is_safe:
+            raise ValueError(f"URL validation failed: {error_msg}")
 
         # Fetch and parse feed
         feed = feedparser.parse(url)
@@ -116,6 +122,12 @@ class RSSIngestionService(BaseIngestionService):
 
     def _fetch_full_article(self, url: str) -> str | None:
         """Fetch full article content from URL."""
+        # SSRF protection: validate URL before fetching
+        is_safe, error_msg = is_safe_url(url)
+        if not is_safe:
+            print(f"Skipping unsafe article URL {url}: {error_msg}")
+            return None
+
         try:
             with httpx.Client(timeout=30, follow_redirects=True) as client:
                 response = client.get(url, headers=self.headers)
@@ -154,6 +166,11 @@ class RSSIngestionService(BaseIngestionService):
 
     def get_feed_info(self, url: str) -> dict:
         """Get feed metadata without extracting all content."""
+        # SSRF protection: validate URL before fetching
+        is_safe, error_msg = is_safe_url(url)
+        if not is_safe:
+            raise ValueError(f"URL validation failed: {error_msg}")
+
         feed = feedparser.parse(url)
 
         if feed.bozo and not feed.entries:

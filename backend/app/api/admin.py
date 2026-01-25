@@ -18,6 +18,8 @@ from app.services.model_registry import (
     SENTENCE_TRANSFORMER_MODELS,
 )
 from app.services.query_enrichment import DEFAULT_ENRICHMENT_PROMPT
+from app.services.security import validate_password_strength
+from app.services.encryption import encrypt_field, decrypt_field, hash_for_lookup
 
 router = APIRouter()
 
@@ -49,31 +51,51 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+def _user_response_with_decrypted_fields(user: User) -> dict:
+    """Create a user response with decrypted email and name fields."""
+    return {
+        "id": user.id,
+        "email": decrypt_field(user.email),
+        "name": decrypt_field(user.name) if user.name else None,
+        "role": user.role,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+    }
+
+
 @router.get("/users", response_model=list[UserResponse])
 async def list_users(admin_user: AdminUser, db: DbSession):
     """List all users."""
     users = db.query(User).order_by(User.created_at.desc()).all()
-    return users
+    return [_user_response_with_decrypted_fields(user) for user in users]
 
 
 @router.post("/users", response_model=UserResponse)
 async def create_user(user_data: UserCreate, admin_user: AdminUser, db: DbSession):
     """Create a new user."""
-    # Check if email exists
-    existing = db.query(User).filter(User.email == user_data.email).first()
+    # Validate password strength
+    is_valid, error_msg = validate_password_strength(user_data.password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    # Check if email exists using hash lookup
+    email_hash = hash_for_lookup(user_data.email)
+    existing = db.query(User).filter(User.email_hash == email_hash).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Create user with encrypted email and name
     user = User(
-        email=user_data.email,
+        email=encrypt_field(user_data.email),
+        email_hash=email_hash,
         hashed_password=get_password_hash(user_data.password),
-        name=user_data.name,
+        name=encrypt_field(user_data.name) if user_data.name else None,
         role=user_data.role,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return _user_response_with_decrypted_fields(user)
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -85,13 +107,28 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Prevent admin from modifying their own role
+    if user_id == admin_user.id and user_update.role is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot modify your own role. Another admin must do this.",
+        )
+
     update_data = user_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(user, field, value)
+        if field == "email" and value is not None:
+            # Encrypt email and update hash
+            user.email = encrypt_field(value)
+            user.email_hash = hash_for_lookup(value)
+        elif field == "name" and value is not None:
+            # Encrypt name
+            user.name = encrypt_field(value)
+        else:
+            setattr(user, field, value)
 
     db.commit()
     db.refresh(user)
-    return user
+    return _user_response_with_decrypted_fields(user)
 
 
 @router.delete("/users/{user_id}")

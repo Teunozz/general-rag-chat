@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    # Encryption key for PII fields (email, name)
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str | None = None
+
     # API Keys (secrets - keep in environment, not database)
     openai_api_key: str = ""
     anthropic_api_key: str = ""

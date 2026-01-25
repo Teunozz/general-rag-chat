@@ -16,9 +16,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    # Email is stored encrypted, email_hash is used for lookups
+    email: Mapped[str] = mapped_column(String(512), nullable=False)  # Increased for encrypted data
+    email_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=True)
+    # Name is stored encrypted
+    name: Mapped[str] = mapped_column(String(512), nullable=True)  # Increased for encrypted data
     role: Mapped[UserRole] = mapped_column(
         SQLEnum(UserRole), default=UserRole.USER, nullable=False
     )

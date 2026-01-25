@@ -1,8 +1,13 @@
+import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -12,6 +17,10 @@ from app.api import auth, chat, sources, recaps, admin, conversations
 
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -29,7 +38,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS middleware - restricted methods and headers
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,22 +52,34 @@ app.add_middleware(
         "http://frontend:3000",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
+    expose_headers=["Content-Length"],
 )
 
 
-# Global exception handler to ensure CORS headers on errors
+# Global exception handler - sanitize error messages
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
-    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}:")
-    print(f"[ERROR] {type(exc).__name__}: {exc}")
-    traceback.print_exc()
+
+    # Generate error ID for tracking
+    error_id = str(uuid.uuid4())[:8]
+
+    # Log full details server-side
+    logger.error(
+        f"[{error_id}] Unhandled exception on {request.method} {request.url.path}: "
+        f"{type(exc).__name__}: {exc}"
+    )
+    logger.error(f"[{error_id}] {traceback.format_exc()}")
+
+    # Return generic message to client
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc)},
+        content={
+            "detail": "An internal server error occurred",
+            "error_id": error_id,
+        },
     )
 
 # Include routers

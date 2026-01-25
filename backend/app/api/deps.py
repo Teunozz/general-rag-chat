@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User, UserRole
+from app.services.encryption import encrypt_field, decrypt_field, hash_for_lookup
 
 settings = get_settings()
 
@@ -43,7 +44,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
-    return db.query(User).filter(User.email == email).first()
+    """Look up user by email using the email_hash column."""
+    email_hash = hash_for_lookup(email)
+    return db.query(User).filter(User.email_hash == email_hash).first()
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:

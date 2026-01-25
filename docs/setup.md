@@ -13,13 +13,14 @@
 # Copy environment file
 cp .env.example .env
 
-# Edit .env with your settings
-# At minimum, set your LLM API key:
-# - OPENAI_API_KEY=sk-your-key
-# OR
-# - ANTHROPIC_API_KEY=your-key
-# OR
-# - Configure Ollama (see below)
+# Generate secure keys
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"
+python -c "from cryptography.fernet import Fernet; print('ENCRYPTION_KEY=' + Fernet.generate_key().decode())"
+
+# Edit .env with your settings:
+# - SECRET_KEY: paste the generated secret key
+# - ENCRYPTION_KEY: paste the generated encryption key (encrypts email/name in database)
+# - OPENAI_API_KEY=sk-your-key (or ANTHROPIC_API_KEY, or configure Ollama)
 ```
 
 ### 2. Start Services
@@ -311,10 +312,32 @@ docker-compose up -d
 ### Environment Variables
 
 Set these in production:
-- `SECRET_KEY`: Generate a strong random key
-- `NEXTAUTH_SECRET`: Generate another strong random key
+
+```bash
+# Generate secure keys
+python -c "import secrets; print(secrets.token_urlsafe(32))"  # For SECRET_KEY
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # For ENCRYPTION_KEY
+```
+
+- `SECRET_KEY`: **Required** - Used for JWT token signing. Generate a strong random key.
+- `ENCRYPTION_KEY`: **Required** - Used to encrypt PII (email, name) in the database. Generate a Fernet key.
 - `POSTGRES_PASSWORD`: Use a strong password
-- Remove or restrict `DEBUG=False`
+- `DEBUG=False`: Disable debug mode
+
+### Password Requirements
+
+User passwords must meet these requirements:
+- Minimum 12 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one digit
+- At least one special character
+
+### Rate Limiting
+
+Authentication endpoints are rate-limited to prevent brute force attacks:
+- Login: 5 requests per minute per IP
+- Registration: 3 requests per minute per IP
 
 ### Reverse Proxy (nginx example)
 

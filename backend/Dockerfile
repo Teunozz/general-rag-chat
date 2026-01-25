@@ -12,15 +12,21 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
 # Install Python dependencies
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e .
 
 # Copy application code
-COPY . .
+COPY --chown=appuser:appuser . .
 
-# Create uploads directory
-RUN mkdir -p /app/uploads
+# Create uploads directory with correct ownership
+RUN mkdir -p /app/uploads && chown -R appuser:appuser /app/uploads
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 8000
 
