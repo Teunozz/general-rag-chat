@@ -29,6 +29,6 @@ def get_db():
 
 def init_db():
     """Initialize database tables."""
-    from app.models import user, source, document, recap  # noqa: F401
+    from app.models import user, source, document, recap, conversation  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

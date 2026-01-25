@@ -3,6 +3,7 @@ from app.models.source import Source, SourceType, SourceStatus
 from app.models.document import Document, DocumentChunk
 from app.models.recap import Recap, RecapType
 from app.models.settings import AppSettings
+from app.models.conversation import Conversation, Message
 
 __all__ = [
     "User",
@@ -14,4 +15,6 @@ __all__ = [
     "Recap",
     "RecapType",
     "AppSettings",
+    "Conversation",
+    "Message",
 ]

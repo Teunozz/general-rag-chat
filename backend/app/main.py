@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import init_db, get_db
 from app.models.settings import AppSettings
-from app.api import auth, chat, sources, recaps, admin
+from app.api import auth, chat, sources, recaps, admin, conversations
 
 
 settings = get_settings()
@@ -60,6 +60,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
+app.include_router(conversations.router, prefix="/api/conversations", tags=["Conversations"])
 app.include_router(sources.router, prefix="/api/sources", tags=["Sources"])
 app.include_router(recaps.router, prefix="/api/recaps", tags=["Recaps"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
