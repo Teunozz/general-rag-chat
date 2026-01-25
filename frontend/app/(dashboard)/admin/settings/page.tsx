@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Loader2, RefreshCw } from "lucide-react";
+import { Save, Loader2, RefreshCw, RotateCcw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RequireAdmin } from "@/lib/auth";
-import { adminApi } from "@/lib/api";
+import { adminApi, sourcesApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 
 interface Settings {
@@ -148,6 +148,13 @@ export default function SettingsPage() {
     mutationFn: () => adminApi.refreshModels(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings-options"] });
+    },
+  });
+
+  const rechunkAllMutation = useMutation({
+    mutationFn: () => sourcesApi.rechunkAll(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sources"] });
     },
   });
 
@@ -380,6 +387,44 @@ export default function SettingsPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+              <div className="pt-4 border-t">
+                <div className="flex items-start gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => rechunkAllMutation.mutate()}
+                    disabled={rechunkAllMutation.isPending}
+                  >
+                    {rechunkAllMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Re-chunk All Sources</span>
+                  </Button>
+                  <div className="flex-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1 font-medium">
+                      <Info className="h-4 w-4" />
+                      <span>When to use this</span>
+                    </div>
+                    <p className="mt-1">
+                      After changing the embedding model, use this to re-process all existing content
+                      with the new model. This re-chunks and re-embeds stored content without
+                      re-fetching from sources, preserving historical data like old RSS articles.
+                    </p>
+                  </div>
+                </div>
+                {rechunkAllMutation.isSuccess && (
+                  <p className="mt-2 text-sm text-green-600">
+                    Re-chunking has been triggered for all sources. Check the sources page for progress.
+                  </p>
+                )}
+                {rechunkAllMutation.isError && (
+                  <p className="mt-2 text-sm text-red-600">
+                    Failed to trigger re-chunking. Please try again.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

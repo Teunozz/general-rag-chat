@@ -40,19 +40,23 @@ FALLBACK_OPENAI_MODELS = [
 ]
 
 # Embedding models (these don't have a discovery API, keep static)
+# max_tokens is the model's effective context window for generating quality embeddings
 OPENAI_EMBEDDING_MODELS = [
-    "text-embedding-3-small",
-    "text-embedding-3-large",
-    "text-embedding-ada-002",
+    {"id": "text-embedding-3-small", "max_tokens": 8191},
+    {"id": "text-embedding-3-large", "max_tokens": 8191},
+    {"id": "text-embedding-ada-002", "max_tokens": 8191},
 ]
 
 SENTENCE_TRANSFORMER_MODELS = [
-    "all-MiniLM-L6-v2",
-    "all-mpnet-base-v2",
-    "paraphrase-MiniLM-L6-v2",
-    "all-MiniLM-L12-v2",
-    "multi-qa-MiniLM-L6-cos-v1",
+    {"id": "all-MiniLM-L6-v2", "max_tokens": 256},
+    {"id": "all-mpnet-base-v2", "max_tokens": 384},
+    {"id": "paraphrase-MiniLM-L6-v2", "max_tokens": 256},
+    {"id": "all-MiniLM-L12-v2", "max_tokens": 256},
+    {"id": "multi-qa-MiniLM-L6-cos-v1", "max_tokens": 512},
 ]
+
+# Default max tokens if model not found
+DEFAULT_EMBEDDING_MAX_TOKENS = 256
 
 
 def get_redis_client() -> redis.Redis:
@@ -244,8 +248,8 @@ def get_all_model_options(force_refresh: bool = False) -> dict:
         "embedding_providers": ["openai", "sentence_transformers"],
         "openai_chat_models": openai_models,
         "anthropic_chat_models": anthropic_models,
-        "openai_embedding_models": OPENAI_EMBEDDING_MODELS,
-        "sentence_transformer_models": SENTENCE_TRANSFORMER_MODELS,
+        "openai_embedding_models": [m["id"] for m in OPENAI_EMBEDDING_MODELS],
+        "sentence_transformer_models": [m["id"] for m in SENTENCE_TRANSFORMER_MODELS],
         "last_updated": get_last_updated(),
     }
 
@@ -257,3 +261,27 @@ def get_model_ids_for_provider(provider: str) -> list[str]:
     elif provider == "anthropic":
         return [m["id"] for m in get_anthropic_chat_models()]
     return []
+
+
+def get_embedding_model_max_tokens(provider: str, model: str) -> int:
+    """Get the max tokens for an embedding model.
+
+    Args:
+        provider: The embedding provider (openai, sentence_transformers)
+        model: The model ID
+
+    Returns:
+        The max token limit for the model
+    """
+    if provider == "openai":
+        models = OPENAI_EMBEDDING_MODELS
+    elif provider == "sentence_transformers":
+        models = SENTENCE_TRANSFORMER_MODELS
+    else:
+        return DEFAULT_EMBEDDING_MAX_TOKENS
+
+    for m in models:
+        if m["id"] == model:
+            return m["max_tokens"]
+
+    return DEFAULT_EMBEDDING_MAX_TOKENS

@@ -7,6 +7,8 @@ from datetime import datetime
 import tiktoken
 
 from app.config import get_settings
+from app.services.model_registry import get_embedding_model_max_tokens
+from app.services.embeddings import get_embedding_settings
 
 settings = get_settings()
 
@@ -43,12 +45,30 @@ class ChunkingService:
         chunk_size: int | None = None,
         chunk_overlap: int | None = None,
     ):
-        self.chunk_size = chunk_size or settings.chunk_size
-        self.chunk_overlap = chunk_overlap or settings.chunk_overlap
+        # If chunk_size not explicitly set, derive from embedding model's max tokens
+        if chunk_size is None:
+            chunk_size = self._get_model_aware_chunk_size()
+
+        self.chunk_size = chunk_size
+        # Overlap should be proportional to chunk size, default to ~20%
+        self.chunk_overlap = chunk_overlap or min(settings.chunk_overlap, chunk_size // 5)
         try:
             self.tokenizer = tiktoken.get_encoding("cl100k_base")
         except Exception:
             self.tokenizer = None
+
+    def _get_model_aware_chunk_size(self) -> int:
+        """Determine chunk size based on the configured embedding model."""
+        try:
+            provider, model = get_embedding_settings()
+            max_tokens = get_embedding_model_max_tokens(provider, model)
+            # Use 90% of max tokens to leave some margin
+            model_chunk_size = int(max_tokens * 0.9)
+            # Don't exceed the configured chunk_size setting
+            return min(model_chunk_size, settings.chunk_size)
+        except Exception:
+            # Fall back to configured chunk_size if we can't determine model limits
+            return settings.chunk_size
 
     def count_tokens(self, text: str) -> int:
         """Count tokens in text."""

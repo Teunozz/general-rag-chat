@@ -8,6 +8,7 @@ from app.services.ingestion import (
     DocumentIngestionService,
     RSSIngestionService,
 )
+from app.services.ingestion.base import ChunkingService
 from app.services.vector_store import get_vector_store
 from app.tasks import celery_app
 
@@ -20,12 +21,11 @@ def _get_document_key(doc) -> str:
 
 
 @celery_app.task(bind=True, max_retries=3)
-def ingest_source(self, source_id: int, force_full: bool = False):
+def ingest_source(self, source_id: int):
     """Ingest content from a source using diff-based updates.
 
     Args:
         source_id: The source to ingest
-        force_full: If True, delete all existing content and re-ingest from scratch
     """
     db = SessionLocal()
     vector_store = get_vector_store()
@@ -72,18 +72,6 @@ def ingest_source(self, source_id: int, force_full: bool = False):
         # Get existing documents for this source
         existing_docs = db.query(Document).filter(Document.source_id == source_id).all()
         existing_docs_map = {_get_document_key(doc): doc for doc in existing_docs}
-
-        # If force_full, delete everything and treat all as new
-        if force_full:
-            for doc in existing_docs:
-                # Delete chunks from DB
-                db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
-                # Delete vectors
-                vector_store.delete_by_document(doc.id)
-                # Delete document
-                db.delete(doc)
-            db.commit()
-            existing_docs_map = {}
 
         # Compute diff
         existing_keys = set(existing_docs_map.keys())
@@ -140,6 +128,7 @@ def ingest_source(self, source_id: int, force_full: bool = False):
 
             # Update document record
             old_doc.title = proc_doc.title
+            old_doc.content = proc_doc.content
             old_doc.content_hash = proc_doc.content_hash
             old_doc.word_count = len(proc_doc.content.split())
             old_doc.chunk_count = len(proc_doc.chunks)
@@ -186,6 +175,7 @@ def ingest_source(self, source_id: int, force_full: bool = False):
                 source_id=source_id,
                 title=proc_doc.title,
                 url=proc_doc.url,
+                content=proc_doc.content,
                 content_hash=proc_doc.content_hash,
                 word_count=len(proc_doc.content.split()),
                 chunk_count=len(proc_doc.chunks),
@@ -306,6 +296,130 @@ def refresh_rss_feeds():
             ingest_source.delay(source.id)
 
         return {"refreshed": len(sources)}
+
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, max_retries=3)
+def rechunk_source(self, source_id: int):
+    """Re-chunk and re-embed all documents for a source using current settings.
+
+    This re-processes existing stored content without re-fetching from the source.
+    Useful when embedding model or chunk size settings have changed.
+
+    Args:
+        source_id: The source to rechunk
+    """
+    db = SessionLocal()
+    vector_store = get_vector_store()
+    chunking_service = ChunkingService()
+
+    try:
+        source = db.query(Source).filter(Source.id == source_id).first()
+        if not source:
+            return {"error": f"Source {source_id} not found"}
+
+        # Update status
+        source.status = SourceStatus.PROCESSING
+        source.error_message = None
+        db.commit()
+
+        # Get all documents for this source that have content
+        documents = (
+            db.query(Document)
+            .filter(Document.source_id == source_id, Document.content.isnot(None))
+            .all()
+        )
+
+        stats = {"rechunked": 0, "skipped": 0, "total_chunks": 0}
+
+        for doc in documents:
+            if not doc.content:
+                stats["skipped"] += 1
+                continue
+
+            # Delete old chunks and vectors
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
+            vector_store.delete_by_document(doc.id)
+
+            # Re-chunk content
+            chunks = chunking_service.chunk_text(doc.content)
+
+            if not chunks:
+                stats["skipped"] += 1
+                continue
+
+            # Add new chunks to vector store
+            chunk_metadata = [
+                {"title": doc.title, "url": doc.url, "chunk_index": i}
+                for i in range(len(chunks))
+            ]
+            vector_ids = vector_store.add_chunks(
+                chunks=chunks,
+                document_id=doc.id,
+                source_id=source_id,
+                metadata=chunk_metadata,
+            )
+
+            # Save chunk references
+            for i, (chunk_content, vector_id) in enumerate(zip(chunks, vector_ids)):
+                chunk = DocumentChunk(
+                    document_id=doc.id,
+                    chunk_index=i,
+                    content=chunk_content,
+                    vector_id=vector_id,
+                )
+                db.add(chunk)
+
+            doc.chunk_count = len(chunks)
+            doc.indexed_at = datetime.utcnow()
+            db.commit()
+
+            stats["rechunked"] += 1
+            stats["total_chunks"] += len(chunks)
+
+        # Update source
+        source.status = SourceStatus.READY
+        source.chunk_count = stats["total_chunks"]
+        db.commit()
+
+        return {
+            "source_id": source_id,
+            "rechunked": stats["rechunked"],
+            "skipped": stats["skipped"],
+            "total_chunks": stats["total_chunks"],
+        }
+
+    except Exception as e:
+        db.rollback()
+        source = db.query(Source).filter(Source.id == source_id).first()
+        if source:
+            source.status = SourceStatus.ERROR
+            source.error_message = str(e)
+            db.commit()
+
+        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+
+    finally:
+        db.close()
+
+
+@celery_app.task
+def rechunk_all_sources():
+    """Re-chunk and re-embed all sources.
+
+    Triggers rechunk_source for each source. Useful after changing
+    embedding model or chunk size settings.
+    """
+    db = SessionLocal()
+    try:
+        sources = db.query(Source).filter(Source.status == SourceStatus.READY).all()
+
+        for source in sources:
+            rechunk_source.delay(source.id)
+
+        return {"triggered": len(sources)}
 
     finally:
         db.close()

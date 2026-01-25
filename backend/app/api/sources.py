@@ -238,12 +238,10 @@ async def reindex_source(
     source_id: int,
     admin_user: AdminUser,
     db: DbSession,
-    force_full: bool = False,
 ):
     """Trigger re-indexing of a source.
 
-    By default, uses diff-based indexing which only processes new/changed content.
-    Set force_full=true to delete all existing content and re-index from scratch.
+    Uses diff-based indexing which only processes new/changed content.
     """
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
@@ -257,7 +255,52 @@ async def reindex_source(
     # Trigger ingestion task
     from app.tasks.ingestion import ingest_source
 
-    ingest_source.delay(source.id, force_full=force_full)
+    ingest_source.delay(source.id)
 
     db.refresh(source)
     return source
+
+
+@router.post("/{source_id}/rechunk", response_model=SourceResponse)
+async def rechunk_source(
+    source_id: int,
+    admin_user: AdminUser,
+    db: DbSession,
+):
+    """Re-chunk and re-embed a source using current settings.
+
+    This re-processes existing stored content without re-fetching from the source.
+    Useful when embedding model or chunk size settings have changed.
+    """
+    source = db.query(Source).filter(Source.id == source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    # Reset status
+    source.status = SourceStatus.PENDING
+    source.error_message = None
+    db.commit()
+
+    # Trigger rechunk task
+    from app.tasks.ingestion import rechunk_source as rechunk_task
+
+    rechunk_task.delay(source.id)
+
+    db.refresh(source)
+    return source
+
+
+@router.post("/rechunk-all")
+async def rechunk_all_sources(
+    admin_user: AdminUser,
+):
+    """Re-chunk and re-embed all sources using current settings.
+
+    This re-processes existing stored content without re-fetching from sources.
+    Useful when embedding model or chunk size settings have changed.
+    """
+    from app.tasks.ingestion import rechunk_all_sources as rechunk_all_task
+
+    rechunk_all_task.delay()
+
+    return {"message": "Rechunk triggered for all sources"}
