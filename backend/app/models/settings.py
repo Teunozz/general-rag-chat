@@ -38,8 +38,14 @@ class AppSettings(Base):
     recap_monthly_day: Mapped[int] = mapped_column(Integer, default=1)  # 1st
 
     # Chat settings
-    chat_context_chunks: Mapped[int] = mapped_column(Integer, default=5)
+    chat_context_chunks: Mapped[int] = mapped_column(Integer, default=15)
     chat_temperature: Mapped[float] = mapped_column(Float, default=0.7)
+
+    # Context expansion settings
+    context_window_size: Mapped[int] = mapped_column(Integer, default=1)
+    full_doc_score_threshold: Mapped[float] = mapped_column(Float, default=0.85)
+    max_full_doc_chars: Mapped[int] = mapped_column(Integer, default=10000)
+    max_context_tokens: Mapped[int] = mapped_column(Integer, default=16000)
     chat_system_prompt: Mapped[str] = mapped_column(
         Text,
         default="You are a helpful assistant that answers questions based on the provided context. Always cite your sources when possible.",

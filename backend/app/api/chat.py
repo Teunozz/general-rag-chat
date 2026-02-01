@@ -51,22 +51,37 @@ class ChatResponse(BaseModel):
     conversation_id: int | None = None  # Returned when using conversation persistence
 
 
-def get_chat_settings(db) -> tuple[int, float, str | None, bool, str | None]:
+def get_chat_settings(db) -> dict:
     """Get chat settings from database, with fallback defaults.
 
     Returns:
-        Tuple of (num_chunks, temperature, system_prompt, enrichment_enabled, enrichment_prompt)
+        Dict with all chat-related settings
     """
     settings = db.query(AppSettings).first()
     if settings:
-        return (
-            settings.chat_context_chunks,
-            settings.chat_temperature,
-            settings.chat_system_prompt,
-            getattr(settings, "query_enrichment_enabled", True),
-            getattr(settings, "query_enrichment_prompt", None),
-        )
-    return 5, 0.7, None, True, None  # Fallback defaults
+        return {
+            "num_chunks": settings.chat_context_chunks,
+            "temperature": settings.chat_temperature,
+            "system_prompt": settings.chat_system_prompt,
+            "enrichment_enabled": getattr(settings, "query_enrichment_enabled", True),
+            "enrichment_prompt": getattr(settings, "query_enrichment_prompt", None),
+            "context_window_size": getattr(settings, "context_window_size", 1),
+            "full_doc_score_threshold": getattr(settings, "full_doc_score_threshold", 0.85),
+            "max_full_doc_chars": getattr(settings, "max_full_doc_chars", 10000),
+            "max_context_tokens": getattr(settings, "max_context_tokens", 16000),
+        }
+    # Fallback defaults
+    return {
+        "num_chunks": 15,
+        "temperature": 0.7,
+        "system_prompt": None,
+        "enrichment_enabled": True,
+        "enrichment_prompt": None,
+        "context_window_size": 1,
+        "full_doc_score_threshold": 0.85,
+        "max_full_doc_chars": 10000,
+        "max_context_tokens": 16000,
+    }
 
 
 def generate_title(message: str, max_length: int = 50) -> str:
@@ -175,9 +190,9 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
         )
 
     # Get settings from database
-    db_chunks, db_temperature, db_system_prompt, enrichment_enabled, enrichment_prompt = get_chat_settings(db)
-    num_chunks = request.num_chunks if request.num_chunks is not None else db_chunks
-    temperature = request.temperature if request.temperature is not None else db_temperature
+    chat_settings = get_chat_settings(db)
+    num_chunks = request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
+    temperature = request.temperature if request.temperature is not None else chat_settings["temperature"]
 
     # Load or create conversation for persistence
     conversation = None
@@ -230,9 +245,14 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
             conversation_history=history,
             num_chunks=num_chunks,
             temperature=temperature,
-            system_prompt=db_system_prompt,
-            enable_enrichment=enrichment_enabled,
-            enrichment_prompt=enrichment_prompt,
+            system_prompt=chat_settings["system_prompt"],
+            enable_enrichment=chat_settings["enrichment_enabled"],
+            enrichment_prompt=chat_settings["enrichment_prompt"],
+            db=db,
+            context_window_size=chat_settings["context_window_size"],
+            full_doc_score_threshold=chat_settings["full_doc_score_threshold"],
+            max_full_doc_chars=chat_settings["max_full_doc_chars"],
+            max_context_tokens=chat_settings["max_context_tokens"],
         )
         print(f"[Chat] Got response with {len(response.sources)} sources")
 
@@ -310,9 +330,9 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
     - data: {"type": "done"} when complete
     """
     # Get settings from database
-    db_chunks, db_temperature, db_system_prompt, enrichment_enabled, enrichment_prompt = get_chat_settings(db)
-    num_chunks = request.num_chunks if request.num_chunks is not None else db_chunks
-    temperature = request.temperature if request.temperature is not None else db_temperature
+    chat_settings = get_chat_settings(db)
+    num_chunks = request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
+    temperature = request.temperature if request.temperature is not None else chat_settings["temperature"]
 
     # Load or create conversation for persistence
     conversation = None
@@ -361,9 +381,14 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
                 conversation_history=history,
                 num_chunks=num_chunks,
                 temperature=temperature,
-                system_prompt=db_system_prompt,
-                enable_enrichment=enrichment_enabled,
-                enrichment_prompt=enrichment_prompt,
+                system_prompt=chat_settings["system_prompt"],
+                enable_enrichment=chat_settings["enrichment_enabled"],
+                enrichment_prompt=chat_settings["enrichment_prompt"],
+                db=db,
+                context_window_size=chat_settings["context_window_size"],
+                full_doc_score_threshold=chat_settings["full_doc_score_threshold"],
+                max_full_doc_chars=chat_settings["max_full_doc_chars"],
+                max_context_tokens=chat_settings["max_context_tokens"],
             ):
                 if isinstance(item, str):
                     # Text chunk

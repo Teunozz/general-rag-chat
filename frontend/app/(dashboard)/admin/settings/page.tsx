@@ -45,6 +45,11 @@ interface Settings {
   chat_system_prompt: string;
   query_enrichment_enabled: boolean;
   query_enrichment_prompt: string | null;
+  // Context expansion settings
+  context_window_size: number;
+  full_doc_score_threshold: number;
+  max_full_doc_chars: number;
+  max_context_tokens: number;
 }
 
 interface ModelInfo {
@@ -495,7 +500,7 @@ export default function SettingsPage() {
                     name="chat_context_chunks"
                     type="number"
                     min="1"
-                    max="20"
+                    max="100"
                     value={formData.chat_context_chunks || 5}
                     onChange={handleChange}
                   />
@@ -526,6 +531,87 @@ export default function SettingsPage() {
                   rows={10}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
                 />
+              </div>
+
+              {/* Context Expansion Settings */}
+              <div className="pt-4 border-t">
+                <h4 className="text-sm font-medium mb-3">Context Expansion</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  These settings control how the system retrieves and expands context around search results.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="context_window_size">
+                      Context Window Size
+                    </Label>
+                    <Input
+                      id="context_window_size"
+                      name="context_window_size"
+                      type="number"
+                      min="0"
+                      max="5"
+                      value={formData.context_window_size ?? 1}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of adjacent chunks to include around each match (0 = disabled)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="full_doc_score_threshold">
+                      Full Document Threshold
+                    </Label>
+                    <Input
+                      id="full_doc_score_threshold"
+                      name="full_doc_score_threshold"
+                      type="number"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={formData.full_doc_score_threshold ?? 0.85}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Score threshold to include full document content (0-1)
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_full_doc_chars">
+                      Max Full Doc Chars
+                    </Label>
+                    <Input
+                      id="max_full_doc_chars"
+                      name="max_full_doc_chars"
+                      type="number"
+                      min="1000"
+                      max="50000"
+                      step="1000"
+                      value={formData.max_full_doc_chars ?? 10000}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Maximum characters to include from full documents
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_context_tokens">
+                      Max Context Tokens
+                    </Label>
+                    <Input
+                      id="max_context_tokens"
+                      name="max_context_tokens"
+                      type="number"
+                      min="1000"
+                      max="100000"
+                      step="1000"
+                      value={formData.max_context_tokens ?? 16000}
+                      onChange={handleChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Token budget for context (prevents context explosion)
+                    </p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

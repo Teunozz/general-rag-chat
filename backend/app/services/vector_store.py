@@ -135,6 +135,157 @@ class VectorStoreService:
             for point in results.points
         ]
 
+    def get_adjacent_chunks(
+        self,
+        document_id: int,
+        chunk_indices: list[int],
+        window: int = 1,
+    ) -> list[SearchResult]:
+        """Fetch adjacent chunks from the same document.
+
+        Args:
+            document_id: The document to fetch chunks from
+            chunk_indices: List of chunk indices to expand around
+            window: Number of adjacent chunks to include on each side
+
+        Returns:
+            List of SearchResult objects for adjacent chunks, ordered by chunk_index
+        """
+        if not chunk_indices or window <= 0:
+            return []
+
+        # Calculate all indices we need to fetch
+        indices_to_fetch = set()
+        for idx in chunk_indices:
+            for offset in range(-window, window + 1):
+                if idx + offset >= 0:  # Avoid negative indices
+                    indices_to_fetch.add(idx + offset)
+
+        # Remove the original indices (we already have those)
+        indices_to_fetch -= set(chunk_indices)
+
+        if not indices_to_fetch:
+            return []
+
+        # Query Qdrant for the adjacent chunks using scroll
+        filter_condition = qdrant_models.Filter(
+            must=[
+                qdrant_models.FieldCondition(
+                    key="document_id",
+                    match=qdrant_models.MatchValue(value=document_id),
+                ),
+                qdrant_models.FieldCondition(
+                    key="chunk_index",
+                    match=qdrant_models.MatchAny(any=list(indices_to_fetch)),
+                ),
+            ]
+        )
+
+        # Use scroll to fetch all matching points
+        results, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=filter_condition,
+            limit=len(indices_to_fetch),
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        # Convert to SearchResult objects (score is 0 for adjacent chunks)
+        adjacent_results = [
+            SearchResult(
+                chunk_id=str(point.id),
+                document_id=point.payload.get("document_id"),
+                source_id=point.payload.get("source_id"),
+                content=point.payload.get("content", ""),
+                score=0.0,  # Adjacent chunks don't have a search score
+                metadata={
+                    k: v
+                    for k, v in point.payload.items()
+                    if k not in ["document_id", "source_id", "content"]
+                },
+            )
+            for point in results
+        ]
+
+        # Sort by chunk_index
+        return sorted(adjacent_results, key=lambda r: r.metadata.get("chunk_index", 0))
+
+    def search_with_context(
+        self,
+        query: str,
+        limit: int = 10,
+        source_ids: list[int] | None = None,
+        score_threshold: float = 0.5,
+        context_window: int = 1,
+    ) -> list[SearchResult]:
+        """Search and expand results with adjacent chunks.
+
+        Args:
+            query: Search query
+            limit: Maximum number of initial results
+            source_ids: Optional filter by source IDs
+            score_threshold: Minimum score threshold
+            context_window: Number of adjacent chunks to include on each side
+
+        Returns:
+            List of SearchResult objects including original matches and adjacent chunks,
+            deduplicated and sorted by (document_id, chunk_index)
+        """
+        # 1. Perform normal search
+        results = self.search(
+            query=query,
+            limit=limit,
+            source_ids=source_ids,
+            score_threshold=score_threshold,
+        )
+
+        if not results or context_window <= 0:
+            return results
+
+        # 2. Collect (document_id, chunk_index) pairs and track best score per document
+        original_chunks = {}  # key: (doc_id, chunk_idx), value: SearchResult
+        doc_to_indices = {}  # key: doc_id, value: list of chunk_indices
+        doc_best_score = {}  # key: doc_id, value: best score for that document
+
+        for result in results:
+            doc_id = result.document_id
+            chunk_idx = result.metadata.get("chunk_index", 0)
+            key = (doc_id, chunk_idx)
+            original_chunks[key] = result
+
+            if doc_id not in doc_to_indices:
+                doc_to_indices[doc_id] = []
+            doc_to_indices[doc_id].append(chunk_idx)
+
+            # Track best score per document for ordering
+            if doc_id not in doc_best_score or result.score > doc_best_score[doc_id]:
+                doc_best_score[doc_id] = result.score
+
+        # 3. Fetch adjacent chunks for each document
+        all_adjacent = []
+        for doc_id, chunk_indices in doc_to_indices.items():
+            adjacent = self.get_adjacent_chunks(doc_id, chunk_indices, context_window)
+            all_adjacent.extend(adjacent)
+
+        # 4. Merge results, keeping original scores where applicable
+        all_chunks = dict(original_chunks)  # Start with original results
+        for adj in all_adjacent:
+            key = (adj.document_id, adj.metadata.get("chunk_index", 0))
+            if key not in all_chunks:
+                all_chunks[key] = adj
+
+        # 5. Sort by best document score (descending), then chunk_index within document
+        # This ensures most relevant documents come first for token budget
+        sorted_results = sorted(
+            all_chunks.values(),
+            key=lambda r: (
+                -doc_best_score.get(r.document_id, 0),  # Highest score first
+                r.metadata.get("chunk_index", 0),  # Then by chunk order
+            ),
+        )
+
+        return sorted_results
+
     def delete_by_document(self, document_id: int):
         """Delete all chunks for a document."""
         self.client.delete(

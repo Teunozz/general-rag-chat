@@ -169,6 +169,11 @@ class SettingsResponse(BaseModel):
     chat_system_prompt: str
     query_enrichment_enabled: bool
     query_enrichment_prompt: str | None
+    # Context expansion settings
+    context_window_size: int
+    full_doc_score_threshold: float
+    max_full_doc_chars: int
+    max_context_tokens: int
 
     class Config:
         from_attributes = True
@@ -195,6 +200,11 @@ class SettingsUpdate(BaseModel):
     chat_system_prompt: str | None = None
     query_enrichment_enabled: bool | None = None
     query_enrichment_prompt: str | None = None
+    # Context expansion settings
+    context_window_size: int | None = None
+    full_doc_score_threshold: float | None = None
+    max_full_doc_chars: int | None = None
+    max_context_tokens: int | None = None
 
 
 # Embedding models are imported from model_registry
