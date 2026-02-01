@@ -29,6 +29,12 @@ import { RequireAdmin } from "@/lib/auth";
 import { sourcesApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
+interface SourceConfig {
+  require_article_type?: boolean;
+  article_types?: string;
+  min_content_length?: number;
+}
+
 interface Source {
   id: number;
   name: string;
@@ -45,6 +51,7 @@ interface Source {
   last_indexed_at: string | null;
   error_message: string | null;
   created_at: string;
+  config?: SourceConfig;
 }
 
 const sourceTypeIcons: Record<string, React.ReactNode> = {
@@ -314,6 +321,13 @@ function AddSourceForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  // Website-specific options
+  const [crawlDepth, setCrawlDepth] = useState(1);
+  const [crawlSameDomainOnly, setCrawlSameDomainOnly] = useState(true);
+  const [requireArticleType, setRequireArticleType] = useState(false);
+  const [articleTypes, setArticleTypes] = useState("");
+  const [minContentLength, setMinContentLength] = useState(0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -325,6 +339,11 @@ function AddSourceForm({
           name,
           description: description || undefined,
           url,
+          crawlDepth,
+          crawlSameDomainOnly,
+          requireArticleType,
+          articleTypes: articleTypes || undefined,
+          minContentLength,
         });
       } else if (type === "rss") {
         await sourcesApi.createRss({
@@ -380,6 +399,79 @@ function AddSourceForm({
           />
         </div>
       )}
+      {type === "website" && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="crawl-depth">Crawl Depth</Label>
+            <Input
+              id="crawl-depth"
+              type="number"
+              min={1}
+              max={10}
+              value={crawlDepth}
+              onChange={(e) => setCrawlDepth(parseInt(e.target.value) || 1)}
+            />
+            <p className="text-xs text-muted-foreground">
+              How many levels deep to crawl links (1 = only the specified URL)
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="same-domain"
+              type="checkbox"
+              checked={crawlSameDomainOnly}
+              onChange={(e) => setCrawlSameDomainOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <Label htmlFor="same-domain" className="font-normal">
+              Only crawl links on the same domain
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="require-article"
+              type="checkbox"
+              checked={requireArticleType}
+              onChange={(e) => setRequireArticleType(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <Label htmlFor="require-article" className="font-normal">
+              Only index article pages (uses JSON-LD detection)
+            </Label>
+          </div>
+
+          {requireArticleType && (
+            <div className="space-y-2 ml-6">
+              <Label htmlFor="article-types">Article Types (optional)</Label>
+              <Input
+                id="article-types"
+                value={articleTypes}
+                onChange={(e) => setArticleTypes(e.target.value)}
+                placeholder="Article, NewsArticle, BlogPosting"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated JSON-LD types. Leave empty to use defaults.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="min-content">Minimum Content Length</Label>
+            <Input
+              id="min-content"
+              type="number"
+              min={0}
+              value={minContentLength}
+              onChange={(e) => setMinContentLength(parseInt(e.target.value) || 0)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Skip pages with less content than this (in characters). 0 = no minimum.
+            </p>
+          </div>
+        </>
+      )}
       {type === "document" && (
         <div className="space-y-2">
           <Label htmlFor="file">File</Label>
@@ -433,6 +525,16 @@ function EditSourceForm({
   const [refreshIntervalMinutes, setRefreshIntervalMinutes] = useState(
     source.refresh_interval_minutes
   );
+  // Article filtering options (from config)
+  const [requireArticleType, setRequireArticleType] = useState(
+    source.config?.require_article_type ?? false
+  );
+  const [articleTypes, setArticleTypes] = useState(
+    source.config?.article_types ?? ""
+  );
+  const [minContentLength, setMinContentLength] = useState(
+    source.config?.min_content_length ?? 0
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -445,6 +547,9 @@ function EditSourceForm({
     if (source.source_type === "website") {
       data.crawl_depth = crawlDepth;
       data.crawl_same_domain_only = crawlSameDomainOnly;
+      data.require_article_type = requireArticleType;
+      data.article_types = articleTypes || null;
+      data.min_content_length = minContentLength;
     } else if (source.source_type === "rss") {
       data.refresh_interval_minutes = refreshIntervalMinutes;
     }
@@ -518,6 +623,48 @@ function EditSourceForm({
             <Label htmlFor="edit-same-domain" className="font-normal">
               Only crawl links on the same domain
             </Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="edit-require-article"
+              type="checkbox"
+              checked={requireArticleType}
+              onChange={(e) => setRequireArticleType(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <Label htmlFor="edit-require-article" className="font-normal">
+              Only index article pages (uses JSON-LD detection)
+            </Label>
+          </div>
+
+          {requireArticleType && (
+            <div className="space-y-2 ml-6">
+              <Label htmlFor="edit-article-types">Article Types (optional)</Label>
+              <Input
+                id="edit-article-types"
+                value={articleTypes}
+                onChange={(e) => setArticleTypes(e.target.value)}
+                placeholder="Article, NewsArticle, BlogPosting"
+              />
+              <p className="text-xs text-muted-foreground">
+                Comma-separated JSON-LD types. Leave empty to use defaults.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-min-content">Minimum Content Length</Label>
+            <Input
+              id="edit-min-content"
+              type="number"
+              min={0}
+              value={minContentLength}
+              onChange={(e) => setMinContentLength(parseInt(e.target.value) || 0)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Skip pages with less content than this (in characters). 0 = no minimum.
+            </p>
           </div>
         </>
       )}

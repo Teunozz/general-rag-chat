@@ -1,11 +1,17 @@
-import re
+import logging
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
+from app.services.ingestion.content_extractor import (
+    ContentExtractor,
+    parse_article_types,
+)
 from app.services.security import is_safe_url
+
+logger = logging.getLogger(__name__)
 
 
 class WebsiteIngestionService(BaseIngestionService):
@@ -14,6 +20,7 @@ class WebsiteIngestionService(BaseIngestionService):
     def __init__(self):
         super().__init__()
         self.visited_urls: set[str] = set()
+        self.content_extractor = ContentExtractor()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0; +https://github.com/your-repo)"
         }
@@ -23,6 +30,9 @@ class WebsiteIngestionService(BaseIngestionService):
         url = source_config.get("url")
         crawl_depth = source_config.get("crawl_depth", 1)
         same_domain_only = source_config.get("same_domain_only", True)
+        require_article_type = source_config.get("require_article_type", False)
+        article_types = parse_article_types(source_config.get("article_types"))
+        min_content_length = source_config.get("min_content_length", 0)
 
         if not url:
             raise ValueError("URL is required for website ingestion")
@@ -36,7 +46,16 @@ class WebsiteIngestionService(BaseIngestionService):
         base_domain = urlparse(url).netloc
 
         results = []
-        self._crawl(url, base_domain, crawl_depth, same_domain_only, results)
+        self._crawl(
+            url=url,
+            base_domain=base_domain,
+            depth=crawl_depth,
+            same_domain_only=same_domain_only,
+            results=results,
+            require_article_type=require_article_type,
+            article_types=article_types,
+            min_content_length=min_content_length,
+        )
         return results
 
     def _crawl(
@@ -46,6 +65,9 @@ class WebsiteIngestionService(BaseIngestionService):
         depth: int,
         same_domain_only: bool,
         results: list[ExtractedContent],
+        require_article_type: bool = False,
+        article_types: set[str] | None = None,
+        min_content_length: int = 0,
     ):
         """Recursively crawl pages."""
         if depth < 0 or url in self.visited_urls:
@@ -61,7 +83,7 @@ class WebsiteIngestionService(BaseIngestionService):
         # SSRF protection: validate each URL before fetching
         is_safe, error_msg = is_safe_url(url)
         if not is_safe:
-            print(f"Skipping unsafe URL {url}: {error_msg}")
+            logger.warning(f"Skipping unsafe URL {url}: {error_msg}")
             return
 
         # Check domain
@@ -79,11 +101,19 @@ class WebsiteIngestionService(BaseIngestionService):
             if "text/html" not in content_type.lower():
                 return
 
-            # Parse HTML
-            soup = BeautifulSoup(response.text, "lxml")
+            html = response.text
 
-            # Extract content
-            content = self._extract_page_content(soup, url)
+            # Parse HTML for link extraction
+            soup = BeautifulSoup(html, "lxml")
+
+            # Extract content using ContentExtractor
+            content = self._extract_page_content(
+                html=html,
+                url=url,
+                require_article_type=require_article_type,
+                article_types=article_types,
+                min_content_length=min_content_length,
+            )
             if content and content.content.strip():
                 results.append(content)
 
@@ -91,11 +121,20 @@ class WebsiteIngestionService(BaseIngestionService):
             if depth > 0:
                 links = self._extract_links(soup, url)
                 for link in links:
-                    self._crawl(link, base_domain, depth - 1, same_domain_only, results)
+                    self._crawl(
+                        url=link,
+                        base_domain=base_domain,
+                        depth=depth - 1,
+                        same_domain_only=same_domain_only,
+                        results=results,
+                        require_article_type=require_article_type,
+                        article_types=article_types,
+                        min_content_length=min_content_length,
+                    )
 
         except Exception as e:
             # Log error but continue with other pages
-            print(f"Error crawling {url}: {e}")
+            logger.error(f"Error crawling {url}: {e}")
 
     def _normalize_url(self, url: str) -> str:
         """Normalize URL for deduplication."""
@@ -106,47 +145,36 @@ class WebsiteIngestionService(BaseIngestionService):
             normalized += f"?{parsed.query}"
         return normalized
 
-    def _extract_page_content(self, soup: BeautifulSoup, url: str) -> ExtractedContent | None:
-        """Extract content from a page."""
-        # Get title
-        title = ""
-        if soup.title:
-            title = soup.title.get_text(strip=True)
-        elif soup.find("h1"):
-            title = soup.find("h1").get_text(strip=True)
-
-        # Remove unwanted elements
-        for element in soup.find_all(
-            ["script", "style", "nav", "footer", "header", "aside", "noscript", "iframe"]
-        ):
-            element.decompose()
-
-        # Try to find main content
-        main_content = (
-            soup.find("main")
-            or soup.find("article")
-            or soup.find(class_=re.compile(r"(content|main|article|post)", re.I))
-            or soup.find("body")
+    def _extract_page_content(
+        self,
+        html: str,
+        url: str,
+        require_article_type: bool = False,
+        article_types: set[str] | None = None,
+        min_content_length: int = 0,
+    ) -> ExtractedContent | None:
+        """Extract content from a page using trafilatura."""
+        result = self.content_extractor.extract(
+            html=html,
+            url=url,
+            require_article_type=require_article_type,
+            article_types=article_types,
+            min_content_length=min_content_length,
         )
 
-        if not main_content:
+        if not result:
             return None
 
-        # Extract text
-        text = main_content.get_text(separator="\n", strip=True)
-
-        # Clean up text
-        text = self._clean_text(text)
-
-        if not text:
-            return None
-
-        # Extract metadata
+        # Build metadata
+        soup = BeautifulSoup(html, "lxml")
         metadata = self._extract_metadata(soup)
+        metadata["is_article"] = result.is_article
+        if result.json_ld_type:
+            metadata["json_ld_type"] = result.json_ld_type
 
         return ExtractedContent(
-            title=title or url,
-            content=text,
+            title=result.title,
+            content=result.content,
             url=url,
             metadata=metadata,
         )
@@ -195,11 +223,3 @@ class WebsiteIngestionService(BaseIngestionService):
 
         return metadata
 
-    def _clean_text(self, text: str) -> str:
-        """Clean extracted text."""
-        # Remove excessive whitespace
-        text = re.sub(r"\n{3,}", "\n\n", text)
-        text = re.sub(r" {2,}", " ", text)
-        # Remove very short lines (likely navigation remnants)
-        lines = [line for line in text.split("\n") if len(line.strip()) > 3]
-        return "\n".join(lines).strip()

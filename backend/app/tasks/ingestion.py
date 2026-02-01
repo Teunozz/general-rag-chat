@@ -47,6 +47,10 @@ def ingest_source(self, source_id: int):
                 "url": source.url,
                 "crawl_depth": source.crawl_depth,
                 "same_domain_only": source.crawl_same_domain_only,
+                # Article filtering options from source.config
+                "require_article_type": source.config.get("require_article_type", False),
+                "article_types": source.config.get("article_types"),
+                "min_content_length": source.config.get("min_content_length", 0),
             }
         elif source.source_type == SourceType.DOCUMENT:
             service = DocumentIngestionService()

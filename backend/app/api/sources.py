@@ -24,6 +24,10 @@ class WebsiteSourceCreate(SourceBase):
     url: HttpUrl
     crawl_depth: int = 1
     crawl_same_domain_only: bool = True
+    # Article filtering options
+    require_article_type: bool = False
+    article_types: str | None = None  # Comma-separated list
+    min_content_length: int = 0
 
 
 class RSSSourceCreate(SourceBase):
@@ -40,7 +44,9 @@ class SourceResponse(BaseModel):
     url: str | None
     file_path: str | None
     crawl_depth: int
+    crawl_same_domain_only: bool
     refresh_interval_minutes: int
+    config: dict | None
     error_message: str | None
     last_indexed_at: datetime | None
     document_count: int
@@ -58,6 +64,10 @@ class SourceUpdate(BaseModel):
     crawl_depth: int | None = None
     crawl_same_domain_only: bool | None = None
     refresh_interval_minutes: int | None = None
+    # Article filtering options (for websites)
+    require_article_type: bool | None = None
+    article_types: str | None = None
+    min_content_length: int | None = None
 
 
 @router.get("", response_model=list[SourceResponse])
@@ -81,6 +91,15 @@ async def create_website_source(
     source_data: WebsiteSourceCreate, admin_user: AdminUser, db: DbSession
 ):
     """Create a new website source."""
+    # Build config dict for article filtering options
+    config = {}
+    if source_data.require_article_type:
+        config["require_article_type"] = source_data.require_article_type
+    if source_data.article_types:
+        config["article_types"] = source_data.article_types
+    if source_data.min_content_length:
+        config["min_content_length"] = source_data.min_content_length
+
     source = Source(
         name=source_data.name,
         description=source_data.description,
@@ -88,6 +107,7 @@ async def create_website_source(
         url=str(source_data.url),
         crawl_depth=source_data.crawl_depth,
         crawl_same_domain_only=source_data.crawl_same_domain_only,
+        config=config,
         status=SourceStatus.PENDING,
     )
     db.add(source)
@@ -200,8 +220,26 @@ async def update_source(
         raise HTTPException(status_code=404, detail="Source not found")
 
     update_data = source_update.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
+
+    # Handle config fields separately (they go into the config JSON column)
+    config_fields = {"require_article_type", "article_types", "min_content_length"}
+    config_updates = {k: v for k, v in update_data.items() if k in config_fields}
+    regular_updates = {k: v for k, v in update_data.items() if k not in config_fields}
+
+    # Update regular fields
+    for field, value in regular_updates.items():
         setattr(source, field, value)
+
+    # Update config fields
+    if config_updates:
+        new_config = dict(source.config) if source.config else {}
+        for field, value in config_updates.items():
+            if value is not None:
+                new_config[field] = value
+            elif field in new_config:
+                # Remove field if set to None
+                del new_config[field]
+        source.config = new_config
 
     db.commit()
     db.refresh(source)

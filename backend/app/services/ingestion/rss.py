@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from time import mktime
 
@@ -6,7 +7,10 @@ import httpx
 from bs4 import BeautifulSoup
 
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
+from app.services.ingestion.content_extractor import ContentExtractor
 from app.services.security import is_safe_url
+
+logger = logging.getLogger(__name__)
 
 
 class RSSIngestionService(BaseIngestionService):
@@ -14,6 +18,7 @@ class RSSIngestionService(BaseIngestionService):
 
     def __init__(self):
         super().__init__()
+        self.content_extractor = ContentExtractor()
         self.headers = {
             "User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0)"
         }
@@ -52,7 +57,7 @@ class RSSIngestionService(BaseIngestionService):
                 if content and content.content.strip():
                     results.append(content)
             except Exception as e:
-                print(f"Error extracting entry {entry.get('link', 'unknown')}: {e}")
+                logger.error(f"Error extracting entry {entry.get('link', 'unknown')}: {e}")
 
         return results
 
@@ -88,7 +93,7 @@ class RSSIngestionService(BaseIngestionService):
                 if full_content and len(full_content) > len(content):
                     content = full_content
             except Exception as e:
-                print(f"Could not fetch full content for {link}: {e}")
+                logger.warning(f"Could not fetch full content for {link}: {e}")
 
         if not content:
             return None
@@ -121,11 +126,11 @@ class RSSIngestionService(BaseIngestionService):
         return text
 
     def _fetch_full_article(self, url: str) -> str | None:
-        """Fetch full article content from URL."""
+        """Fetch full article content from URL using trafilatura."""
         # SSRF protection: validate URL before fetching
         is_safe, error_msg = is_safe_url(url)
         if not is_safe:
-            print(f"Skipping unsafe article URL {url}: {error_msg}")
+            logger.warning(f"Skipping unsafe article URL {url}: {error_msg}")
             return None
 
         try:
@@ -137,31 +142,16 @@ class RSSIngestionService(BaseIngestionService):
             if "text/html" not in content_type.lower():
                 return None
 
-            soup = BeautifulSoup(response.text, "lxml")
-
-            # Remove unwanted elements
-            for element in soup.find_all(
-                ["script", "style", "nav", "footer", "header", "aside", "noscript"]
-            ):
-                element.decompose()
-
-            # Try to find article content
-            article = (
-                soup.find("article")
-                or soup.find(class_=["article", "post-content", "entry-content", "content"])
-                or soup.find("main")
+            # Use ContentExtractor without JSON-LD requirement (RSS items are already articles)
+            result = self.content_extractor.extract(
+                html=response.text,
+                url=url,
+                require_article_type=False,
             )
 
-            if article:
-                return article.get_text(separator="\n", strip=True)
-
-            # Fallback to body
-            body = soup.find("body")
-            if body:
-                return body.get_text(separator="\n", strip=True)
-
-            return None
-        except Exception:
+            return result.content if result else None
+        except Exception as e:
+            logger.debug(f"Failed to fetch full article from {url}: {e}")
             return None
 
     def get_feed_info(self, url: str) -> dict:
