@@ -3,6 +3,10 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# HTTP client configuration
+PROJECT_URL = "https://github.com/Teunozz/general-rag-chat"
+USER_AGENT = f"Mozilla/5.0 (compatible; RAGBot/1.0; +{PROJECT_URL})"
+
 
 class LLMProvider(str, Enum):
     OPENAI = "openai"

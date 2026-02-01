@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+from app.config import USER_AGENT
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
 from app.services.ingestion.content_extractor import (
     ContentExtractor,
@@ -21,9 +22,7 @@ class WebsiteIngestionService(BaseIngestionService):
         super().__init__()
         self.visited_urls: set[str] = set()
         self.content_extractor = ContentExtractor()
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0; +https://github.com/your-repo)"
-        }
+        self.headers = {"User-Agent": USER_AGENT}
 
     def extract_content(self, source_config: dict) -> list[ExtractedContent]:
         """Extract content from website(s)."""

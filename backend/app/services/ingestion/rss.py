@@ -6,6 +6,7 @@ import feedparser
 import httpx
 from bs4 import BeautifulSoup
 
+from app.config import USER_AGENT
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
 from app.services.ingestion.content_extractor import ContentExtractor
 from app.services.security import is_safe_url
@@ -19,7 +20,7 @@ class RSSIngestionService(BaseIngestionService):
     def __init__(self):
         super().__init__()
         self.content_extractor = ContentExtractor()
-        self.headers = {"User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0)"}
+        self.headers = {"User-Agent": USER_AGENT}
 
     def extract_content(self, source_config: dict) -> list[ExtractedContent]:
         """Extract content from RSS feed."""
