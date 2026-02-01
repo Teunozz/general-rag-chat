@@ -80,9 +80,7 @@ async def get_recap(recap_id: int, current_user: CurrentUser, db: DbSession):
 
 
 @router.post("/generate", response_model=RecapResponse)
-async def generate_recap(
-    request: GenerateRecapRequest, admin_user: AdminUser, db: DbSession
-):
+async def generate_recap(request: GenerateRecapRequest, admin_user: AdminUser, db: DbSession):
     """Manually trigger recap generation."""
     recap_service = get_recap_service()
 

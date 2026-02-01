@@ -19,9 +19,7 @@ class RSSIngestionService(BaseIngestionService):
     def __init__(self):
         super().__init__()
         self.content_extractor = ContentExtractor()
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0)"
-        }
+        self.headers = {"User-Agent": "Mozilla/5.0 (compatible; RAGBot/1.0)"}
 
     def extract_content(self, source_config: dict) -> list[ExtractedContent]:
         """Extract content from RSS feed."""

@@ -142,8 +142,14 @@ def ingest_source(self, source_id: int):
             db.commit()
 
             # Add new chunks
+            published_ts = int(proc_doc.published_at.timestamp()) if proc_doc.published_at else None
             chunk_metadata = [
-                {"title": proc_doc.title, "url": proc_doc.url, "chunk_index": i}
+                {
+                    "title": proc_doc.title,
+                    "url": proc_doc.url,
+                    "chunk_index": i,
+                    "published_at_ts": published_ts,
+                }
                 for i in range(len(proc_doc.chunks))
             ]
             vector_ids = vector_store.add_chunks(
@@ -192,8 +198,14 @@ def ingest_source(self, source_id: int):
             db.refresh(doc)
 
             # Add chunks to vector store
+            published_ts = int(proc_doc.published_at.timestamp()) if proc_doc.published_at else None
             chunk_metadata = [
-                {"title": proc_doc.title, "url": proc_doc.url, "chunk_index": i}
+                {
+                    "title": proc_doc.title,
+                    "url": proc_doc.url,
+                    "chunk_index": i,
+                    "published_at_ts": published_ts,
+                }
                 for i in range(len(proc_doc.chunks))
             ]
             vector_ids = vector_store.add_chunks(
@@ -267,7 +279,7 @@ def ingest_source(self, source_id: int):
             db.commit()
 
         # Retry with exponential backoff
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
 
     finally:
         db.close()
@@ -292,6 +304,7 @@ def refresh_rss_feeds():
             # Check if refresh is needed based on interval
             if source.last_indexed_at:
                 from datetime import timedelta
+
                 time_since_refresh = datetime.utcnow() - source.last_indexed_at
                 if time_since_refresh < timedelta(minutes=source.refresh_interval_minutes):
                     continue
@@ -355,8 +368,14 @@ def rechunk_source(self, source_id: int):
                 continue
 
             # Add new chunks to vector store
+            published_ts = int(doc.published_at.timestamp()) if doc.published_at else None
             chunk_metadata = [
-                {"title": doc.title, "url": doc.url, "chunk_index": i}
+                {
+                    "title": doc.title,
+                    "url": doc.url,
+                    "chunk_index": i,
+                    "published_at_ts": published_ts,
+                }
                 for i in range(len(chunks))
             ]
             vector_ids = vector_store.add_chunks(
@@ -403,7 +422,7 @@ def rechunk_source(self, source_id: int):
             source.error_message = str(e)
             db.commit()
 
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
 
     finally:
         db.close()
@@ -424,6 +443,59 @@ def rechunk_all_sources():
             rechunk_source.delay(source.id)
 
         return {"triggered": len(sources)}
+
+    finally:
+        db.close()
+
+
+@celery_app.task
+def add_timestamps_to_vectors():
+    """Backfill published_at_ts to existing Qdrant vector payloads.
+
+    This task updates existing vectors with the published_at_ts field
+    based on document data from PostgreSQL. Run this after deploying
+    the date filtering feature to enable filtering on existing data.
+    """
+    db = SessionLocal()
+    vector_store = get_vector_store()
+
+    try:
+        # Get all documents with their published_at dates
+        documents = db.query(Document).all()
+
+        updated_count = 0
+        skipped_count = 0
+
+        for doc in documents:
+            # Get all chunks for this document
+            chunks = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).all()
+
+            if not chunks:
+                skipped_count += 1
+                continue
+
+            # Calculate timestamp
+            published_ts = int(doc.published_at.timestamp()) if doc.published_at else None
+
+            # Update each chunk's vector payload in Qdrant
+            for chunk in chunks:
+                if chunk.vector_id:
+                    try:
+                        vector_store.client.set_payload(
+                            collection_name=vector_store.collection_name,
+                            payload={"published_at_ts": published_ts},
+                            points=[chunk.vector_id],
+                        )
+                    except Exception as e:
+                        print(f"[AddTimestamps] Error updating vector {chunk.vector_id}: {e}")
+                        continue
+
+            updated_count += 1
+
+        return {
+            "updated_documents": updated_count,
+            "skipped_documents": skipped_count,
+        }
 
     finally:
         db.close()

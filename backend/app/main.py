@@ -15,7 +15,6 @@ from app.database import init_db, get_db
 from app.models.settings import AppSettings
 from app.api import auth, chat, sources, recaps, admin, conversations
 
-
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
@@ -81,6 +80,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error_id": error_id,
         },
     )
+
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])

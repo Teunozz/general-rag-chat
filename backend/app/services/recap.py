@@ -168,10 +168,14 @@ class RecapService:
 
             # Generate title
             title_prompt = f"Create a short, descriptive title (max 10 words) for this {recap_type.value} recap:\n\n{content[:500]}"
-            title = self.llm.chat(
-                [{"role": "user", "content": title_prompt}],
-                temperature=0.3,
-            ).strip().strip('"')
+            title = (
+                self.llm.chat(
+                    [{"role": "user", "content": title_prompt}],
+                    temperature=0.3,
+                )
+                .strip()
+                .strip('"')
+            )
 
             # Generate summary (first paragraph)
             summary_prompt = f"Create a 2-3 sentence summary of this recap:\n\n{content[:1000]}"

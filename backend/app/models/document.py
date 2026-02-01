@@ -22,7 +22,9 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=True)
     url: Mapped[str] = mapped_column(String(2048), nullable=True)
     file_path: Mapped[str] = mapped_column(String(1024), nullable=True)
-    content: Mapped[str] = mapped_column(Text, nullable=True)  # Full original content for re-chunking
+    content: Mapped[str] = mapped_column(
+        Text, nullable=True
+    )  # Full original content for re-chunking
     content_hash: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
     status: Mapped[DocumentStatus] = mapped_column(
         SQLEnum(DocumentStatus), default=DocumentStatus.PENDING, nullable=False

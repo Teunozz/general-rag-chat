@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.services.llm import LLMService, get_llm_service
+from app.services.date_filter import DateFilter
 from app.services.query_enrichment import (
     EnrichmentResult,
     QueryEnrichmentService,
@@ -33,7 +34,7 @@ Instructions:
 
 def extract_citations(response: str) -> set[int]:
     """Extract cited source numbers from the response."""
-    pattern = r'\[(\d+)\]'
+    pattern = r"\[(\d+)\]"
     matches = re.findall(pattern, response)
     return {int(m) for m in matches if int(m) > 0}
 
@@ -120,9 +121,7 @@ class ChatService:
         from app.models.document import Document
 
         # Identify high-scoring documents
-        high_score_doc_ids = {
-            r.document_id for r in results if r.score >= score_threshold
-        }
+        high_score_doc_ids = {r.document_id for r in results if r.score >= score_threshold}
 
         if not high_score_doc_ids:
             return {}
@@ -319,6 +318,7 @@ class ChatService:
         """
         # Enrich query if enabled
         search_query = query
+        date_filter: DateFilter | None = None
         if enable_enrichment:
             result = self._enrich_query(
                 query=query,
@@ -328,6 +328,9 @@ class ChatService:
             if result.success:
                 search_query = result.enriched_query
                 print(f"[Chat] Enriched query: {query!r} -> {search_query!r}")
+            if result.date_filter and result.date_filter.is_active():
+                date_filter = result.date_filter
+                print(f"[Chat] Date filter extracted: {date_filter}")
 
         # Search for relevant chunks using (possibly enriched) query
         # Use search_with_context if context_window_size > 0
@@ -337,12 +340,14 @@ class ChatService:
                 limit=num_chunks,
                 source_ids=source_ids,
                 context_window=context_window_size,
+                date_filter=date_filter,
             )
         else:
             results = self.vector_store.search(
                 query=search_query,
                 limit=num_chunks,
                 source_ids=source_ids,
+                date_filter=date_filter,
             )
 
         # Expand to full documents for high-scoring results
@@ -356,9 +361,11 @@ class ChatService:
             )
 
         # Build context
-        context = self._build_context(
-            results, full_docs=full_docs, max_tokens=max_context_tokens
-        ) if results else "No relevant context found."
+        context = (
+            self._build_context(results, full_docs=full_docs, max_tokens=max_context_tokens)
+            if results
+            else "No relevant context found."
+        )
 
         # Build messages
         instructions = system_prompt or DEFAULT_SYSTEM_INSTRUCTIONS
@@ -382,9 +389,7 @@ class ChatService:
         valid_cited = {i for i in cited_indices if 1 <= i <= unique_docs}
         sources = self._build_sources(results, valid_cited, full_docs)
 
-        return ChatResponse(
-            answer=answer, sources=sources, cited_indices=sorted(valid_cited)
-        )
+        return ChatResponse(answer=answer, sources=sources, cited_indices=sorted(valid_cited))
 
     async def chat_stream(
         self,
@@ -423,6 +428,7 @@ class ChatService:
         """
         # Enrich query if enabled
         search_query = query
+        date_filter: DateFilter | None = None
         if enable_enrichment:
             result = self._enrich_query(
                 query=query,
@@ -431,7 +437,10 @@ class ChatService:
             )
             if result.success:
                 search_query = result.enriched_query
-                print(f"[Chat] Enriched query: {query!r} -> {search_query!r}")
+                print(f"[ChatStream] Enriched query: {query!r} -> {search_query!r}")
+            if result.date_filter and result.date_filter.is_active():
+                date_filter = result.date_filter
+                print(f"[ChatStream] Date filter extracted: {date_filter}")
 
         # Search for relevant chunks using (possibly enriched) query
         # Use search_with_context if context_window_size > 0
@@ -441,12 +450,14 @@ class ChatService:
                 limit=num_chunks,
                 source_ids=source_ids,
                 context_window=context_window_size,
+                date_filter=date_filter,
             )
         else:
             results = self.vector_store.search(
                 query=search_query,
                 limit=num_chunks,
                 source_ids=source_ids,
+                date_filter=date_filter,
             )
 
         # Expand to full documents for high-scoring results
@@ -460,9 +471,11 @@ class ChatService:
             )
 
         # Build context
-        context = self._build_context(
-            results, full_docs=full_docs, max_tokens=max_context_tokens
-        ) if results else "No relevant context found."
+        context = (
+            self._build_context(results, full_docs=full_docs, max_tokens=max_context_tokens)
+            if results
+            else "No relevant context found."
+        )
 
         # Build messages
         instructions = system_prompt or DEFAULT_SYSTEM_INSTRUCTIONS

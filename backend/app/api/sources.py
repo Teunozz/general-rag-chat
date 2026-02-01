@@ -123,9 +123,7 @@ async def create_website_source(
 
 
 @router.post("/rss", response_model=SourceResponse)
-async def create_rss_source(
-    source_data: RSSSourceCreate, admin_user: AdminUser, db: DbSession
-):
+async def create_rss_source(source_data: RSSSourceCreate, admin_user: AdminUser, db: DbSession):
     """Create a new RSS feed source."""
     source = Source(
         name=source_data.name,

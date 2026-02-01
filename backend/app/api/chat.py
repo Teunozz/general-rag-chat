@@ -101,9 +101,7 @@ def generate_conversation_summary(messages: list[dict]) -> str:
     llm_service = get_llm_service()
 
     # Format messages for the summary prompt
-    conversation_text = "\n".join(
-        f"{msg['role'].upper()}: {msg['content']}" for msg in messages
-    )
+    conversation_text = "\n".join(f"{msg['role'].upper()}: {msg['content']}" for msg in messages)
 
     summary_prompt = [
         {
@@ -145,7 +143,10 @@ def build_conversation_history(
     needs_summary_update = (
         not conversation.summary
         or not conversation.summary_up_to_message_id
-        or (last_message_to_summarize and conversation.summary_up_to_message_id < last_message_to_summarize.id)
+        or (
+            last_message_to_summarize
+            and conversation.summary_up_to_message_id < last_message_to_summarize.id
+        )
     )
 
     if needs_summary_update and messages_to_summarize:
@@ -161,14 +162,18 @@ def build_conversation_history(
     history = []
 
     if conversation.summary:
-        history.append({
-            "role": "user",
-            "content": f"[Previous conversation summary: {conversation.summary}]",
-        })
-        history.append({
-            "role": "assistant",
-            "content": "I understand. I have the context from our previous conversation. How can I help you continue?",
-        })
+        history.append(
+            {
+                "role": "user",
+                "content": f"[Previous conversation summary: {conversation.summary}]",
+            }
+        )
+        history.append(
+            {
+                "role": "assistant",
+                "content": "I understand. I have the context from our previous conversation. How can I help you continue?",
+            }
+        )
 
     # Add recent messages
     recent_messages = messages[-RECENT_MESSAGES_TO_KEEP:]
@@ -191,15 +196,21 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
 
     # Get settings from database
     chat_settings = get_chat_settings(db)
-    num_chunks = request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
-    temperature = request.temperature if request.temperature is not None else chat_settings["temperature"]
+    num_chunks = (
+        request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
+    )
+    temperature = (
+        request.temperature if request.temperature is not None else chat_settings["temperature"]
+    )
 
     # Load or create conversation for persistence
     conversation = None
     if request.conversation_id:
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == request.conversation_id, Conversation.user_id == current_user.id)
+            .filter(
+                Conversation.id == request.conversation_id, Conversation.user_id == current_user.id
+            )
             .first()
         )
         if not conversation:
@@ -230,7 +241,9 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
         db.commit()
     elif request.conversation_history:
         # Use history from request (backward compatibility)
-        history = [{"role": msg.role, "content": msg.content} for msg in request.conversation_history]
+        history = [
+            {"role": msg.role, "content": msg.content} for msg in request.conversation_history
+        ]
 
     # Use conversation's source_ids if set, otherwise use request's
     source_ids = request.source_ids
@@ -238,7 +251,9 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
         source_ids = conversation.source_ids
 
     try:
-        print(f"[Chat] Calling chat with query: {request.message[:50]}... (history: {len(history) if history else 0} messages)")
+        print(
+            f"[Chat] Calling chat with query: {request.message[:50]}... (history: {len(history) if history else 0} messages)"
+        )
         response = chat_service.chat(
             query=request.message,
             source_ids=source_ids,
@@ -331,15 +346,21 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
     """
     # Get settings from database
     chat_settings = get_chat_settings(db)
-    num_chunks = request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
-    temperature = request.temperature if request.temperature is not None else chat_settings["temperature"]
+    num_chunks = (
+        request.num_chunks if request.num_chunks is not None else chat_settings["num_chunks"]
+    )
+    temperature = (
+        request.temperature if request.temperature is not None else chat_settings["temperature"]
+    )
 
     # Load or create conversation for persistence
     conversation = None
     if request.conversation_id:
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == request.conversation_id, Conversation.user_id == current_user.id)
+            .filter(
+                Conversation.id == request.conversation_id, Conversation.user_id == current_user.id
+            )
             .first()
         )
         if not conversation:
@@ -361,7 +382,9 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
         history = build_conversation_history(conversation, list(conversation.messages))
         db.commit()  # Commit any summary updates
     elif request.conversation_history:
-        history = [{"role": msg.role, "content": msg.content} for msg in request.conversation_history]
+        history = [
+            {"role": msg.role, "content": msg.content} for msg in request.conversation_history
+        ]
 
     # Use conversation's source_ids if set, otherwise use request's
     source_ids = request.source_ids
@@ -410,11 +433,13 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
                         }
                         for s in item["sources"]
                     ]
-                    data = json.dumps({
-                        "type": "sources",
-                        "sources": sources_data,
-                        "cited_indices": item["cited_indices"],
-                    })
+                    data = json.dumps(
+                        {
+                            "type": "sources",
+                            "sources": sources_data,
+                            "cited_indices": item["cited_indices"],
+                        }
+                    )
                     yield f"data: {data}\n\n"
 
             # Save messages to database if using conversation persistence

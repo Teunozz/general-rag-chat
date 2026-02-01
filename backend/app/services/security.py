@@ -5,7 +5,6 @@ import re
 import socket
 from urllib.parse import urlparse
 
-
 # Blocked hostnames and patterns for SSRF protection
 BLOCKED_HOSTNAMES = [
     "localhost",
@@ -41,11 +40,7 @@ def is_private_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)
         return (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
+            ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved
         )
     except ValueError:
         return False

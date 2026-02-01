@@ -1,17 +1,46 @@
+import json
+import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
+from app.services.date_filter import DateFilter
 from app.services.llm import LLMService, get_llm_service
 
-DEFAULT_ENRICHMENT_PROMPT = """You are a query rewriting assistant for a document search system. Your task is to improve the user's search query for better retrieval.
+DEFAULT_ENRICHMENT_PROMPT = """You are a query rewriting assistant for a document search system. Your task is to improve the user's search query for better retrieval and extract any temporal constraints.
 
 Instructions:
 1. Expand pronouns and references using the conversation context (e.g., "it" -> "the authentication system")
 2. Add relevant synonyms if helpful
 3. Clarify ambiguous terms
-4. Keep the output concise (under 50 words)
-5. Output ONLY the rewritten query, nothing else
+4. Keep the rewritten query concise (under 50 words)
+5. Identify temporal expressions and convert them to date ranges
+6. Remove temporal expressions from the rewritten query (they will be applied as filters)
 
-If the query is already clear and self-contained, return it unchanged."""
+Temporal expressions to detect:
+- "latest", "recent", "new" -> last 7 days
+- "last week" -> last 7 days
+- "past month", "last month" -> last 30 days
+- "this year" -> from January 1 of current year
+- "yesterday" -> yesterday only
+- "last N days" -> last N days
+- "from YYYY-MM-DD to YYYY-MM-DD" -> specific range
+- "after YYYY-MM-DD" -> from that date to now
+- "before YYYY-MM-DD" -> from epoch to that date
+
+Today's date is: {today}
+
+Output your response as JSON with this structure:
+{{
+    "rewritten_query": "the improved search query without temporal expressions",
+    "date_filter": {{
+        "expression": "the original temporal expression or null",
+        "start_date": "YYYY-MM-DD or null",
+        "end_date": "YYYY-MM-DD or null"
+    }}
+}}
+
+If there is no temporal constraint, set date_filter to null.
+Only output valid JSON, nothing else."""
 
 
 @dataclass
@@ -21,6 +50,7 @@ class EnrichmentResult:
     original_query: str
     enriched_query: str
     success: bool
+    date_filter: DateFilter | None = None
 
 
 class QueryEnrichmentService:
@@ -46,42 +76,50 @@ class QueryEnrichmentService:
             EnrichmentResult with original and enriched queries
         """
         try:
-            # Build the enrichment prompt
-            system_prompt = custom_prompt or DEFAULT_ENRICHMENT_PROMPT
+            # Build the enrichment prompt with today's date
+            today = datetime.now().strftime("%Y-%m-%d")
+            base_prompt = custom_prompt or DEFAULT_ENRICHMENT_PROMPT
+            system_prompt = base_prompt.format(today=today)
 
             messages = [{"role": "system", "content": system_prompt}]
 
             # Add conversation context if available
             if conversation_history:
                 context_text = self._format_conversation_context(conversation_history)
-                messages.append({
-                    "role": "user",
-                    "content": f"Conversation context:\n{context_text}\n\nQuery to rewrite: {query}",
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Conversation context:\n{context_text}\n\nQuery to rewrite: {query}",
+                    }
+                )
             else:
-                messages.append({
-                    "role": "user",
-                    "content": f"Query to rewrite: {query}",
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Query to rewrite: {query}",
+                    }
+                )
 
             # Use low temperature for more deterministic rewrites
-            enriched = self.llm.chat(messages, temperature=0.3)
+            response = self.llm.chat(messages, temperature=0.3)
 
-            # Clean up the response
-            enriched = enriched.strip()
+            # Parse the JSON response
+            enriched_query, date_filter = self._parse_enrichment_response(response, query)
 
             # If the enrichment is empty or too long, fall back to original
-            if not enriched or len(enriched) > 500:
+            if not enriched_query or len(enriched_query) > 500:
                 return EnrichmentResult(
                     original_query=query,
                     enriched_query=query,
                     success=False,
+                    date_filter=date_filter,
                 )
 
             return EnrichmentResult(
                 original_query=query,
-                enriched_query=enriched,
+                enriched_query=enriched_query,
                 success=True,
+                date_filter=date_filter,
             )
 
         except Exception as e:
@@ -92,6 +130,69 @@ class QueryEnrichmentService:
                 enriched_query=query,
                 success=False,
             )
+
+    def _parse_enrichment_response(
+        self, response: str, original_query: str
+    ) -> tuple[str, DateFilter | None]:
+        """Parse the LLM JSON response into query and date filter.
+
+        Args:
+            response: The raw LLM response
+            original_query: Fallback query if parsing fails
+
+        Returns:
+            Tuple of (enriched_query, date_filter)
+        """
+        response = response.strip()
+
+        # Try to extract JSON from the response
+        # Handle cases where LLM wraps JSON in markdown code blocks
+        json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
+        if json_match:
+            response = json_match.group(1)
+
+        try:
+            data = json.loads(response)
+        except json.JSONDecodeError:
+            # Fall back to treating the response as a plain query
+            return response, None
+
+        enriched_query = data.get("rewritten_query", original_query)
+        date_filter = None
+
+        # Parse date filter if present
+        date_data = data.get("date_filter")
+        if date_data and isinstance(date_data, dict):
+            start_date = self._parse_date(date_data.get("start_date"))
+            end_date = self._parse_date(date_data.get("end_date"))
+            expression = date_data.get("expression")
+
+            if start_date or end_date:
+                date_filter = DateFilter(
+                    start_date=start_date,
+                    end_date=end_date,
+                    original_expression=expression,
+                    include_undated=True,
+                )
+
+        return enriched_query, date_filter
+
+    def _parse_date(self, date_str: str | None) -> datetime | None:
+        """Parse a date string into a datetime object.
+
+        Args:
+            date_str: Date string in YYYY-MM-DD format
+
+        Returns:
+            datetime object or None
+        """
+        if not date_str or date_str == "null":
+            return None
+
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            return None
 
     def _format_conversation_context(
         self, conversation_history: list[dict], max_messages: int = 6

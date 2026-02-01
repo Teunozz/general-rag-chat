@@ -99,9 +99,7 @@ async def create_user(user_data: UserCreate, admin_user: AdminUser, db: DbSessio
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: int, user_update: UserUpdate, admin_user: AdminUser, db: DbSession
-):
+async def update_user(user_id: int, user_update: UserUpdate, admin_user: AdminUser, db: DbSession):
     """Update a user."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -216,13 +214,22 @@ def validate_embedding_settings(provider: str, model: str) -> tuple[bool, str]:
     if provider == "openai":
         valid_ids = [m["id"] for m in OPENAI_EMBEDDING_MODELS]
         if model not in valid_ids:
-            return False, f"Invalid OpenAI embedding model '{model}'. Allowed: {', '.join(valid_ids)}"
+            return (
+                False,
+                f"Invalid OpenAI embedding model '{model}'. Allowed: {', '.join(valid_ids)}",
+            )
     elif provider == "sentence_transformers":
         valid_ids = [m["id"] for m in SENTENCE_TRANSFORMER_MODELS]
         if model not in valid_ids:
-            return False, f"Invalid Sentence Transformers model '{model}'. Allowed: {', '.join(valid_ids)}"
+            return (
+                False,
+                f"Invalid Sentence Transformers model '{model}'. Allowed: {', '.join(valid_ids)}",
+            )
     else:
-        return False, f"Invalid embedding provider '{provider}'. Allowed: openai, sentence_transformers"
+        return (
+            False,
+            f"Invalid embedding provider '{provider}'. Allowed: openai, sentence_transformers",
+        )
     return True, ""
 
 
@@ -235,7 +242,10 @@ def validate_llm_settings(provider: str, model: str) -> tuple[bool, str]:
     elif provider == "anthropic":
         valid_models = get_model_ids_for_provider("anthropic")
         if model not in valid_models:
-            return False, f"Invalid Anthropic chat model '{model}'. Allowed: {', '.join(valid_models)}"
+            return (
+                False,
+                f"Invalid Anthropic chat model '{model}'. Allowed: {', '.join(valid_models)}",
+            )
     elif provider == "ollama":
         # Ollama models are user-defined, so we allow any non-empty string
         if not model or not model.strip():
@@ -281,9 +291,7 @@ async def refresh_models(admin_user: AdminUser):
 
 
 @router.put("/settings", response_model=SettingsResponse)
-async def update_settings(
-    settings_update: SettingsUpdate, admin_user: AdminUser, db: DbSession
-):
+async def update_settings(settings_update: SettingsUpdate, admin_user: AdminUser, db: DbSession):
     """Update application settings."""
     settings = get_or_create_settings(db)
 
@@ -305,8 +313,11 @@ async def update_settings(
 
     # Check if embedding settings are changing
     embedding_changed = (
-        ("embedding_provider" in update_data and update_data["embedding_provider"] != settings.embedding_provider)
-        or ("embedding_model" in update_data and update_data["embedding_model"] != settings.embedding_model)
+        "embedding_provider" in update_data
+        and update_data["embedding_provider"] != settings.embedding_provider
+    ) or (
+        "embedding_model" in update_data
+        and update_data["embedding_model"] != settings.embedding_model
     )
 
     for field, value in update_data.items():
@@ -318,6 +329,7 @@ async def update_settings(
     # Reset embedding service cache if embedding settings changed
     if embedding_changed:
         from app.services.embeddings import reset_embedding_service
+
         reset_embedding_service()
 
     return settings
@@ -348,11 +360,12 @@ async def get_dashboard_stats(admin_user: AdminUser, db: DbSession):
     total_documents = db.query(Document).count()
 
     # Calculate total chunks from all sources
-    total_chunks = db.query(Source).with_entities(
-        db.query(Source.chunk_count).scalar_subquery()
-    ).scalar() or 0
+    total_chunks = (
+        db.query(Source).with_entities(db.query(Source.chunk_count).scalar_subquery()).scalar() or 0
+    )
     # Actually sum the chunk counts
     from sqlalchemy import func
+
     total_chunks = db.query(func.sum(Source.chunk_count)).scalar() or 0
 
     # Recap stats

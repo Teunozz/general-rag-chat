@@ -87,10 +87,12 @@ def fetch_anthropic_models() -> list[dict]:
                 model_id = model.get("id", "")
                 # Filter to only include chat models (claude-*)
                 if model_id.startswith("claude-"):
-                    models.append({
-                        "id": model_id,
-                        "display_name": model.get("display_name", model_id),
-                    })
+                    models.append(
+                        {
+                            "id": model_id,
+                            "display_name": model.get("display_name", model_id),
+                        }
+                    )
 
             if models:
                 # Sort by created_at descending (newest first) if available
@@ -138,19 +140,23 @@ def fetch_openai_models() -> list[dict]:
                     seen_ids.add(model_id)
                     # Create a display name
                     display_name = model_id.upper().replace("-", " ").replace("GPT ", "GPT-")
-                    models.append({
-                        "id": model_id,
-                        "display_name": display_name,
-                    })
+                    models.append(
+                        {
+                            "id": model_id,
+                            "display_name": display_name,
+                        }
+                    )
 
             if models:
                 # Sort to put most common models first
                 priority = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"]
+
                 def sort_key(m):
                     try:
                         return priority.index(m["id"])
                     except ValueError:
                         return len(priority)
+
                 models.sort(key=sort_key)
                 return models
 

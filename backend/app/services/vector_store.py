@@ -7,6 +7,7 @@ from qdrant_client.http import models as qdrant_models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
 from app.config import get_settings
+from app.services.date_filter import DateFilter
 from app.services.embeddings import get_embedding_service
 
 settings = get_settings()
@@ -47,6 +48,48 @@ class VectorStoreService:
                 ),
             )
 
+    def _build_date_filter_condition(self, date_filter: DateFilter) -> qdrant_models.Filter | None:
+        """Build a Qdrant filter condition for date range filtering.
+
+        Args:
+            date_filter: The date filter to apply
+
+        Returns:
+            A Qdrant Filter for date constraints, or None if no constraints
+        """
+        start_ts, end_ts = date_filter.to_timestamps()
+
+        if start_ts is None and end_ts is None:
+            return None
+
+        # Build range condition for published_at_ts
+        range_conditions = {}
+        if start_ts is not None:
+            range_conditions["gte"] = start_ts
+        if end_ts is not None:
+            # Add 1 day to end_ts to make it inclusive (end of day)
+            range_conditions["lte"] = end_ts + 86400  # 86400 seconds = 1 day
+
+        date_range_condition = qdrant_models.FieldCondition(
+            key="published_at_ts",
+            range=qdrant_models.Range(**range_conditions),
+        )
+
+        if date_filter.include_undated:
+            # Use should clause: include if in range OR if published_at_ts is null
+            # Qdrant uses IsNull to match null values
+            return qdrant_models.Filter(
+                should=[
+                    date_range_condition,
+                    qdrant_models.IsNullCondition(
+                        is_null=qdrant_models.PayloadField(key="published_at_ts")
+                    ),
+                ]
+            )
+        else:
+            # Only include documents with dates in range
+            return date_range_condition
+
     def add_chunks(
         self,
         chunks: list[str],
@@ -75,9 +118,7 @@ class VectorStoreService:
                 "chunk_index": i,
                 **chunk_metadata,
             }
-            points.append(
-                qdrant_models.PointStruct(id=chunk_id, vector=embedding, payload=payload)
-            )
+            points.append(qdrant_models.PointStruct(id=chunk_id, vector=embedding, payload=payload))
 
         # Upsert to Qdrant
         self.client.upsert(collection_name=self.collection_name, points=points)
@@ -90,8 +131,17 @@ class VectorStoreService:
         limit: int = 5,
         source_ids: list[int] | None = None,
         score_threshold: float = 0.5,
+        date_filter: DateFilter | None = None,
     ) -> list[SearchResult]:
-        """Search for similar chunks."""
+        """Search for similar chunks.
+
+        Args:
+            query: Search query string
+            limit: Maximum number of results
+            source_ids: Optional filter by source IDs
+            score_threshold: Minimum score threshold
+            date_filter: Optional date range filter
+        """
         # Generate query embedding
         query_embedding = self.embedding_service.embed_text(query)
 
@@ -105,9 +155,13 @@ class VectorStoreService:
                 )
             )
 
-        query_filter = (
-            qdrant_models.Filter(must=filter_conditions) if filter_conditions else None
-        )
+        # Apply date filter if active
+        if date_filter and date_filter.is_active():
+            date_condition = self._build_date_filter_condition(date_filter)
+            if date_condition:
+                filter_conditions.append(date_condition)
+
+        query_filter = qdrant_models.Filter(must=filter_conditions) if filter_conditions else None
 
         # Search using query_points (new API in qdrant-client >= 1.7)
         results = self.client.query_points(
@@ -217,6 +271,7 @@ class VectorStoreService:
         source_ids: list[int] | None = None,
         score_threshold: float = 0.5,
         context_window: int = 1,
+        date_filter: DateFilter | None = None,
     ) -> list[SearchResult]:
         """Search and expand results with adjacent chunks.
 
@@ -226,6 +281,7 @@ class VectorStoreService:
             source_ids: Optional filter by source IDs
             score_threshold: Minimum score threshold
             context_window: Number of adjacent chunks to include on each side
+            date_filter: Optional date range filter
 
         Returns:
             List of SearchResult objects including original matches and adjacent chunks,
@@ -237,6 +293,7 @@ class VectorStoreService:
             limit=limit,
             source_ids=source_ids,
             score_threshold=score_threshold,
+            date_filter=date_filter,
         )
 
         if not results or context_window <= 0:
