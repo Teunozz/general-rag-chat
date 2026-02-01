@@ -105,17 +105,17 @@ install-frontend: ## Install frontend npm dependencies
 
 ##@ Database
 
-migrate: ## Run database migrations
-	cd backend && alembic upgrade head
+migrate: ## Run database migrations (uses venv)
+	cd backend && .venv/bin/alembic upgrade head
 
-migrate-new: ## Create a new migration (usage: make migrate-new MSG="description")
-	cd backend && alembic revision --autogenerate -m "$(MSG)"
+migrate-new: ## Create a new migration (uses venv, usage: make migrate-new MSG="description")
+	cd backend && .venv/bin/alembic revision --autogenerate -m "$(MSG)"
 
-migrate-down: ## Rollback one migration
-	cd backend && alembic downgrade -1
+migrate-down: ## Rollback one migration (uses venv)
+	cd backend && .venv/bin/alembic downgrade -1
 
-migrate-history: ## Show migration history
-	cd backend && alembic history
+migrate-history: ## Show migration history (uses venv)
+	cd backend && .venv/bin/alembic history
 
 db-shell: ## Open PostgreSQL shell
 	docker-compose exec postgres psql -U $${POSTGRES_USER:-raguser} -d $${POSTGRES_DB:-ragdb}
