@@ -1,8 +1,9 @@
 from app.database import SessionLocal
-from app.models.recap import RecapType
+from app.models.recap import RecapStatus, RecapType
 from app.models.settings import AppSettings
 from app.services.recap import get_recap_service
 from app.tasks import celery_app
+from app.tasks.email import send_recap_notifications
 
 
 def get_recap_settings(db) -> AppSettings | None:
@@ -22,6 +23,11 @@ def generate_daily_recap():
 
         recap_service = get_recap_service()
         recap = recap_service.generate_recap(db, RecapType.DAILY)
+
+        # Trigger email notifications if recap was generated successfully
+        if recap and recap.status == RecapStatus.READY:
+            send_recap_notifications.delay(recap.id)
+
         return {
             "recap_id": recap.id,
             "title": recap.title,
@@ -45,6 +51,11 @@ def generate_weekly_recap():
 
         recap_service = get_recap_service()
         recap = recap_service.generate_recap(db, RecapType.WEEKLY)
+
+        # Trigger email notifications if recap was generated successfully
+        if recap and recap.status == RecapStatus.READY:
+            send_recap_notifications.delay(recap.id)
+
         return {
             "recap_id": recap.id,
             "title": recap.title,
@@ -68,6 +79,11 @@ def generate_monthly_recap():
 
         recap_service = get_recap_service()
         recap = recap_service.generate_recap(db, RecapType.MONTHLY)
+
+        # Trigger email notifications if recap was generated successfully
+        if recap and recap.status == RecapStatus.READY:
+            send_recap_notifications.delay(recap.id)
+
         return {
             "recap_id": recap.id,
             "title": recap.title,
@@ -86,6 +102,11 @@ def generate_recap_task(recap_type: str):
     try:
         recap_service = get_recap_service()
         recap = recap_service.generate_recap(db, RecapType(recap_type))
+
+        # Trigger email notifications if recap was generated successfully
+        if recap and recap.status == RecapStatus.READY:
+            send_recap_notifications.delay(recap.id)
+
         return {
             "recap_id": recap.id,
             "title": recap.title,

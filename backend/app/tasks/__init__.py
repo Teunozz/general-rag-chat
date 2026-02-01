@@ -8,7 +8,7 @@ celery_app = Celery(
     "rag_tasks",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.tasks.ingestion", "app.tasks.recap"],
+    include=["app.tasks.ingestion", "app.tasks.recap", "app.tasks.email"],
 )
 
 # Celery configuration

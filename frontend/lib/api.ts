@@ -35,6 +35,25 @@ api.interceptors.response.use(
 );
 
 // Auth API
+export interface User {
+  id: number;
+  email: string;
+  name: string | null;
+  role: "admin" | "user";
+  is_active: boolean;
+  email_notifications_enabled: boolean;
+  email_daily_recap: boolean;
+  email_weekly_recap: boolean;
+  email_monthly_recap: boolean;
+}
+
+export interface UserNotificationUpdate {
+  email_notifications_enabled?: boolean;
+  email_daily_recap?: boolean;
+  email_weekly_recap?: boolean;
+  email_monthly_recap?: boolean;
+}
+
 export const authApi = {
   login: async (email: string, password: string) => {
     const formData = new FormData();
@@ -53,8 +72,12 @@ export const authApi = {
     });
     return response.data;
   },
-  me: async () => {
+  me: async (): Promise<User> => {
     const response = await api.get("/api/auth/me");
+    return response.data;
+  },
+  updateMe: async (data: Partial<User> & UserNotificationUpdate): Promise<User> => {
+    const response = await api.put("/api/auth/me", data);
     return response.data;
   },
 };
@@ -264,6 +287,11 @@ export const recapsApi = {
 };
 
 // Admin API
+export interface TestEmailResponse {
+  success: boolean;
+  message: string;
+}
+
 export const adminApi = {
   getStats: async () => {
     const response = await api.get("/api/admin/stats");
@@ -283,6 +311,10 @@ export const adminApi = {
   },
   updateSettings: async (data: Record<string, unknown>) => {
     const response = await api.put("/api/admin/settings", data);
+    return response.data;
+  },
+  testEmail: async (email?: string): Promise<TestEmailResponse> => {
+    const response = await api.post("/api/admin/settings/test-email", { email });
     return response.data;
   },
   listUsers: async () => {

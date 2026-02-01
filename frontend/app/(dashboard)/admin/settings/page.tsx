@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Loader2, RefreshCw, RotateCcw, Info } from "lucide-react";
+import { Save, Loader2, RefreshCw, RotateCcw, Info, Mail, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,9 @@ interface Settings {
   full_doc_score_threshold: number;
   max_full_doc_chars: number;
   max_context_tokens: number;
+  // Email notification settings
+  email_notifications_enabled: boolean;
+  email_recap_notifications_enabled: boolean;
 }
 
 interface ModelInfo {
@@ -185,6 +188,24 @@ export default function SettingsPage() {
     mutationFn: () => sourcesApi.rechunkAll(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sources"] });
+    },
+  });
+
+  const [testEmailStatus, setTestEmailStatus] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  const testEmailMutation = useMutation({
+    mutationFn: () => adminApi.testEmail(),
+    onSuccess: (data) => {
+      setTestEmailStatus(data);
+    },
+    onError: (error: Error) => {
+      setTestEmailStatus({
+        success: false,
+        message: error.message || "Failed to send test email",
+      });
     },
   });
 
@@ -728,6 +749,99 @@ export default function SettingsPage() {
                   />
                   <span className="text-sm">Monthly</span>
                 </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Notifications</CardTitle>
+              <CardDescription>
+                Configure SMTP email notifications for recaps. SMTP settings are configured via environment variables.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="email_notifications_enabled"
+                    name="email_notifications_enabled"
+                    checked={formData.email_notifications_enabled ?? false}
+                    onChange={handleChange}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="email_notifications_enabled">
+                    Enable Email Notifications
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Master switch for all email notifications. When disabled, no emails will be sent.
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="email_recap_notifications_enabled"
+                    name="email_recap_notifications_enabled"
+                    checked={formData.email_recap_notifications_enabled ?? false}
+                    onChange={handleChange}
+                    disabled={!formData.email_notifications_enabled}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="email_recap_notifications_enabled" className={!formData.email_notifications_enabled ? "text-muted-foreground" : ""}>
+                    Send Recap Notifications
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, users who have opted in will receive email notifications when new recaps are generated.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <div className="flex items-start gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setTestEmailStatus(null);
+                      testEmailMutation.mutate();
+                    }}
+                    disabled={testEmailMutation.isPending}
+                  >
+                    {testEmailMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Test Email</span>
+                  </Button>
+                  <div className="flex-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1 font-medium">
+                      <Info className="h-4 w-4" />
+                      <span>SMTP Configuration</span>
+                    </div>
+                    <p className="mt-1">
+                      SMTP settings are configured via environment variables (SMTP_HOST, SMTP_PORT, etc.).
+                      Click &quot;Test Email&quot; to verify your SMTP configuration by sending a test email to your admin email address.
+                    </p>
+                  </div>
+                </div>
+                {testEmailStatus && (
+                  <div className={`mt-3 p-3 rounded-md flex items-center gap-2 ${
+                    testEmailStatus.success
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                  }`}>
+                    {testEmailStatus.success ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <span className="text-sm">{testEmailStatus.message}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, JSON, Boolean
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -54,6 +54,10 @@ class AppSettings(Base):
     # Query enrichment settings
     query_enrichment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     query_enrichment_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Email notification settings (master switches)
+    email_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    email_recap_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Additional config as JSON
     extra_config: Mapped[dict] = mapped_column(JSON, default=dict)

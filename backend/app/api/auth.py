@@ -7,21 +7,19 @@ from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 
-from app.config import get_settings
-from app.database import get_db
-from app.models.user import User, UserRole
 from app.api.deps import (
+    CurrentUser,
+    DbSession,
     authenticate_user,
     create_access_token,
     get_password_hash,
     get_user_by_email,
-    CurrentUser,
-    DbSession,
 )
+from app.config import get_settings
+from app.models.user import User, UserRole
+from app.services.encryption import decrypt_field, encrypt_field, hash_for_lookup
 from app.services.security import validate_password_strength
-from app.services.encryption import encrypt_field, decrypt_field, hash_for_lookup
 
 router = APIRouter()
 settings = get_settings()
@@ -45,6 +43,11 @@ class UserResponse(BaseModel):
     name: str | None
     role: UserRole
     is_active: bool
+    # Email notification preferences
+    email_notifications_enabled: bool
+    email_daily_recap: bool
+    email_weekly_recap: bool
+    email_monthly_recap: bool
 
     class Config:
         from_attributes = True
@@ -53,6 +56,11 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
+    # Email notification preferences
+    email_notifications_enabled: bool | None = None
+    email_daily_recap: bool | None = None
+    email_weekly_recap: bool | None = None
+    email_monthly_recap: bool | None = None
 
 
 class PasswordChange(BaseModel):
@@ -68,6 +76,10 @@ def _user_response_with_decrypted_fields(user: User) -> dict:
         "name": decrypt_field(user.name) if user.name else None,
         "role": user.role,
         "is_active": user.is_active,
+        "email_notifications_enabled": user.email_notifications_enabled,
+        "email_daily_recap": user.email_daily_recap,
+        "email_weekly_recap": user.email_weekly_recap,
+        "email_monthly_recap": user.email_monthly_recap,
     }
 
 
@@ -168,6 +180,16 @@ async def update_current_user(
         # Encrypt email and update hash for lookups
         current_user.email = encrypt_field(user_update.email)
         current_user.email_hash = hash_for_lookup(user_update.email)
+
+    # Update email notification preferences
+    if user_update.email_notifications_enabled is not None:
+        current_user.email_notifications_enabled = user_update.email_notifications_enabled
+    if user_update.email_daily_recap is not None:
+        current_user.email_daily_recap = user_update.email_daily_recap
+    if user_update.email_weekly_recap is not None:
+        current_user.email_weekly_recap = user_update.email_weekly_recap
+    if user_update.email_monthly_recap is not None:
+        current_user.email_monthly_recap = user_update.email_monthly_recap
 
     db.commit()
     db.refresh(current_user)

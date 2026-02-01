@@ -4,22 +4,22 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from app.api.deps import AdminUser, DbSession, get_password_hash
-from app.models.user import User, UserRole
-from app.models.source import Source, SourceStatus
 from app.models.document import Document
 from app.models.recap import Recap
 from app.models.settings import AppSettings
-from app.services.vector_store import get_vector_store
+from app.models.source import Source, SourceStatus
+from app.models.user import User, UserRole
+from app.services.encryption import decrypt_field, encrypt_field, hash_for_lookup
 from app.services.model_registry import (
-    get_all_model_options,
-    refresh_all_models,
-    get_model_ids_for_provider,
     OPENAI_EMBEDDING_MODELS,
     SENTENCE_TRANSFORMER_MODELS,
+    get_all_model_options,
+    get_model_ids_for_provider,
+    refresh_all_models,
 )
 from app.services.query_enrichment import DEFAULT_ENRICHMENT_PROMPT
 from app.services.security import validate_password_strength
-from app.services.encryption import encrypt_field, decrypt_field, hash_for_lookup
+from app.services.vector_store import get_vector_store
 
 router = APIRouter()
 
@@ -172,6 +172,9 @@ class SettingsResponse(BaseModel):
     full_doc_score_threshold: float
     max_full_doc_chars: int
     max_context_tokens: int
+    # Email notification settings
+    email_notifications_enabled: bool
+    email_recap_notifications_enabled: bool
 
     class Config:
         from_attributes = True
@@ -203,6 +206,9 @@ class SettingsUpdate(BaseModel):
     full_doc_score_threshold: float | None = None
     max_full_doc_chars: int | None = None
     max_context_tokens: int | None = None
+    # Email notification settings
+    email_notifications_enabled: bool | None = None
+    email_recap_notifications_enabled: bool | None = None
 
 
 # Embedding models are imported from model_registry
@@ -387,3 +393,60 @@ async def get_dashboard_stats(admin_user: AdminUser, db: DbSession):
         total_users=total_users,
         vector_store_info=vector_store_info,
     )
+
+
+# Email Settings
+class TestEmailRequest(BaseModel):
+    email: EmailStr | None = None  # If not provided, send to admin's email
+
+
+class TestEmailResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/settings/test-email", response_model=TestEmailResponse)
+async def test_email(
+    request: TestEmailRequest,
+    admin_user: AdminUser,
+    db: DbSession,
+):
+    """Send a test email to verify SMTP configuration."""
+    from app.services.email import get_email_service
+    from app.services.email_templates import render_test_email
+
+    settings = get_or_create_settings(db)
+
+    # Get recipient email
+    if request.email:
+        recipient = request.email
+    else:
+        # Use admin's email
+        recipient = decrypt_field(admin_user.email)
+
+    if not recipient:
+        raise HTTPException(status_code=400, detail="Could not determine recipient email")
+
+    # First test connection
+    email_service = get_email_service()
+    success, message = email_service.test_connection()
+
+    if not success:
+        return TestEmailResponse(success=False, message=message)
+
+    # Render and send test email
+    html, text = render_test_email(settings.app_name)
+    subject = f"Test Email - {settings.app_name}"
+
+    success = email_service.send_email(recipient, subject, html, text)
+
+    if success:
+        return TestEmailResponse(
+            success=True,
+            message=f"Test email sent successfully to {recipient}",
+        )
+    else:
+        return TestEmailResponse(
+            success=False,
+            message="Failed to send test email. Check server logs for details.",
+        )

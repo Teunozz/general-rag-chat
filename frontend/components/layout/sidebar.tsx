@@ -10,6 +10,7 @@ import {
   Database,
   LogOut,
   Calendar,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -20,6 +21,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 const navigation = [
   { name: "Chat", href: "/chat", icon: MessageSquare },
   { name: "Recaps", href: "/recaps", icon: Calendar },
+  { name: "Settings", href: "/settings", icon: UserCog },
 ];
 
 const adminNavigation = [

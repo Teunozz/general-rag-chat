@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     upload_dir: str = "/app/uploads"
     max_upload_size: int = 50 * 1024 * 1024  # 50MB
 
+    # SMTP Email Settings
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "RAG System"
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

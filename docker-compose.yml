@@ -65,6 +65,15 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - LLM_PROVIDER=${LLM_PROVIDER:-openai}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
+      # SMTP Email Settings
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-RAG System}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+      - SMTP_USE_SSL=${SMTP_USE_SSL:-false}
     volumes:
       - ./backend:/app
       - uploaded_documents:/app/uploads
@@ -95,6 +104,15 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - LLM_PROVIDER=${LLM_PROVIDER:-openai}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
+      # SMTP Email Settings
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-RAG System}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+      - SMTP_USE_SSL=${SMTP_USE_SSL:-false}
     volumes:
       - ./backend:/app
       - uploaded_documents:/app/uploads
