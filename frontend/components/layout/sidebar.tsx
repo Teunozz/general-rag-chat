@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navigation = [
   { name: "Chat", href: "/chat", icon: MessageSquare },
@@ -90,11 +91,14 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t p-4">
-        <div className="mb-2 px-3">
-          <p className="text-sm font-medium">{user?.name || user?.email}</p>
-          <p className="text-xs text-muted-foreground">
-            {isAdmin ? "Administrator" : "User"}
-          </p>
+        <div className="mb-2 flex items-center justify-between px-3">
+          <div>
+            <p className="text-sm font-medium">{user?.name || user?.email}</p>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? "Administrator" : "User"}
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
         <Button
           variant="ghost"
