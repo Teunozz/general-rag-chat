@@ -92,13 +92,55 @@ class ChatService:
         query: str,
         conversation_history: list[dict] | None = None,
         custom_prompt: str | None = None,
+        available_sources: list[dict] | None = None,
     ) -> EnrichmentResult:
         """Enrich the query for better retrieval."""
         return self.query_enrichment.enrich_query(
             query=query,
             conversation_history=conversation_history,
             custom_prompt=custom_prompt,
+            available_sources=available_sources,
         )
+
+    def _get_available_sources(self, db: Session) -> list[dict]:
+        """Fetch available sources from the database for source matching.
+
+        Args:
+            db: Database session
+
+        Returns:
+            List of source dicts with id, name, url
+        """
+        from app.models.source import Source, SourceStatus
+
+        sources = db.query(Source).filter(Source.status == SourceStatus.READY).all()
+        return [
+            {"id": source.id, "name": source.name, "url": source.url}
+            for source in sources
+        ]
+
+    def _merge_source_ids(
+        self,
+        explicit_ids: list[int] | None,
+        enriched_ids: list[int] | None,
+    ) -> list[int] | None:
+        """Merge explicit source IDs with enriched ones.
+
+        Explicit IDs from UI selection take precedence over enriched IDs
+        from natural language parsing.
+
+        Args:
+            explicit_ids: Source IDs explicitly passed by the caller
+            enriched_ids: Source IDs extracted from the query by enrichment
+
+        Returns:
+            Merged source IDs, or None if no filtering needed
+        """
+        # Explicit IDs from UI selection take precedence
+        if explicit_ids:
+            return explicit_ids
+        # Fall back to enriched IDs from natural language
+        return enriched_ids
 
     def _expand_to_full_documents(
         self,
@@ -319,11 +361,15 @@ class ChatService:
         # Enrich query if enabled
         search_query = query
         date_filter: DateFilter | None = None
+        enriched_source_ids: list[int] | None = None
         if enable_enrichment:
+            # Fetch available sources for source matching
+            available_sources = self._get_available_sources(db) if db else None
             result = self._enrich_query(
                 query=query,
                 conversation_history=conversation_history,
                 custom_prompt=enrichment_prompt,
+                available_sources=available_sources,
             )
             if result.success:
                 search_query = result.enriched_query
@@ -331,6 +377,16 @@ class ChatService:
             if result.date_filter and result.date_filter.is_active():
                 date_filter = result.date_filter
                 print(f"[Chat] Date filter extracted: {date_filter}")
+            if result.source_ids:
+                enriched_source_ids = result.source_ids
+                print(f"[Chat] Source filter extracted: {enriched_source_ids}")
+
+        # Merge explicit source_ids with enriched ones (explicit takes precedence)
+        effective_source_ids = self._merge_source_ids(source_ids, enriched_source_ids)
+
+        # Lower score threshold when source filtering is active, since user
+        # explicitly wants content from specific sources (e.g., "recap Bitcoin Magazine")
+        search_score_threshold = 0.3 if effective_source_ids else 0.5
 
         # Search for relevant chunks using (possibly enriched) query
         # Use search_with_context if context_window_size > 0
@@ -338,16 +394,18 @@ class ChatService:
             results = self.vector_store.search_with_context(
                 query=search_query,
                 limit=num_chunks,
-                source_ids=source_ids,
+                source_ids=effective_source_ids,
                 context_window=context_window_size,
                 date_filter=date_filter,
+                score_threshold=search_score_threshold,
             )
         else:
             results = self.vector_store.search(
                 query=search_query,
                 limit=num_chunks,
-                source_ids=source_ids,
+                source_ids=effective_source_ids,
                 date_filter=date_filter,
+                score_threshold=search_score_threshold,
             )
 
         # Expand to full documents for high-scoring results
@@ -429,11 +487,15 @@ class ChatService:
         # Enrich query if enabled
         search_query = query
         date_filter: DateFilter | None = None
+        enriched_source_ids: list[int] | None = None
         if enable_enrichment:
+            # Fetch available sources for source matching
+            available_sources = self._get_available_sources(db) if db else None
             result = self._enrich_query(
                 query=query,
                 conversation_history=conversation_history,
                 custom_prompt=enrichment_prompt,
+                available_sources=available_sources,
             )
             if result.success:
                 search_query = result.enriched_query
@@ -441,6 +503,16 @@ class ChatService:
             if result.date_filter and result.date_filter.is_active():
                 date_filter = result.date_filter
                 print(f"[ChatStream] Date filter extracted: {date_filter}")
+            if result.source_ids:
+                enriched_source_ids = result.source_ids
+                print(f"[ChatStream] Source filter extracted: {enriched_source_ids}")
+
+        # Merge explicit source_ids with enriched ones (explicit takes precedence)
+        effective_source_ids = self._merge_source_ids(source_ids, enriched_source_ids)
+
+        # Lower score threshold when source filtering is active, since user
+        # explicitly wants content from specific sources (e.g., "recap Bitcoin Magazine")
+        search_score_threshold = 0.3 if effective_source_ids else 0.5
 
         # Search for relevant chunks using (possibly enriched) query
         # Use search_with_context if context_window_size > 0
@@ -448,16 +520,18 @@ class ChatService:
             results = self.vector_store.search_with_context(
                 query=search_query,
                 limit=num_chunks,
-                source_ids=source_ids,
+                source_ids=effective_source_ids,
                 context_window=context_window_size,
                 date_filter=date_filter,
+                score_threshold=search_score_threshold,
             )
         else:
             results = self.vector_store.search(
                 query=search_query,
                 limit=num_chunks,
-                source_ids=source_ids,
+                source_ids=effective_source_ids,
                 date_filter=date_filter,
+                score_threshold=search_score_threshold,
             )
 
         # Expand to full documents for high-scoring results

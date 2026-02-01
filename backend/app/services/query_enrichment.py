@@ -1,12 +1,12 @@
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.services.date_filter import DateFilter
 from app.services.llm import LLMService, get_llm_service
 
-DEFAULT_ENRICHMENT_PROMPT = """You are a query rewriting assistant for a document search system. Your task is to improve the user's search query for better retrieval and extract any temporal constraints.
+DEFAULT_ENRICHMENT_PROMPT = """You are a query rewriting assistant for a document search system. Your task is to improve the user's search query for better retrieval, extract temporal constraints, and identify source references.
 
 Instructions:
 1. Expand pronouns and references using the conversation context (e.g., "it" -> "the authentication system")
@@ -15,6 +15,7 @@ Instructions:
 4. Keep the rewritten query concise (under 50 words)
 5. Identify temporal expressions and convert them to date ranges
 6. Remove temporal expressions from the rewritten query (they will be applied as filters)
+7. Identify source references and match them to available sources
 
 Temporal expressions to detect:
 - "latest", "recent", "new" -> last 7 days
@@ -27,19 +28,34 @@ Temporal expressions to detect:
 - "after YYYY-MM-DD" -> from that date to now
 - "before YYYY-MM-DD" -> from epoch to that date
 
+Source matching rules:
+- Match partial names (e.g., "Bitcoin Mag" matches "Bitcoin Magazine")
+- Match by domain if URL is mentioned (e.g., "from techcrunch" matches techcrunch.com)
+- Be case-insensitive when matching
+- If multiple sources match, include all of them
+- Only match if there is clear intent to filter by source
+- Remove source references from the rewritten query (they will be applied as filters)
+
 Today's date is: {today}
+
+{sources_section}
 
 Output your response as JSON with this structure:
 {{
-    "rewritten_query": "the improved search query without temporal expressions",
+    "rewritten_query": "the improved search query without temporal expressions or source references",
     "date_filter": {{
         "expression": "the original temporal expression or null",
         "start_date": "YYYY-MM-DD or null",
         "end_date": "YYYY-MM-DD or null"
+    }},
+    "source_filter": {{
+        "expression": "the original source reference or null",
+        "source_ids": [list of matched source IDs or empty array]
     }}
 }}
 
 If there is no temporal constraint, set date_filter to null.
+If there is no source reference or no available sources, set source_filter to null.
 Only output valid JSON, nothing else."""
 
 
@@ -51,6 +67,7 @@ class EnrichmentResult:
     enriched_query: str
     success: bool
     date_filter: DateFilter | None = None
+    source_ids: list[int] | None = None
 
 
 class QueryEnrichmentService:
@@ -64,6 +81,7 @@ class QueryEnrichmentService:
         query: str,
         conversation_history: list[dict] | None = None,
         custom_prompt: str | None = None,
+        available_sources: list[dict] | None = None,
     ) -> EnrichmentResult:
         """Enrich a query using the LLM for better retrieval.
 
@@ -71,15 +89,17 @@ class QueryEnrichmentService:
             query: The original user query
             conversation_history: Previous messages for context
             custom_prompt: Optional custom enrichment prompt
+            available_sources: List of source dicts with id, name, url for source matching
 
         Returns:
             EnrichmentResult with original and enriched queries
         """
         try:
-            # Build the enrichment prompt with today's date
+            # Build the enrichment prompt with today's date and available sources
             today = datetime.now().strftime("%Y-%m-%d")
+            sources_section = self._format_sources_section(available_sources)
             base_prompt = custom_prompt or DEFAULT_ENRICHMENT_PROMPT
-            system_prompt = base_prompt.format(today=today)
+            system_prompt = base_prompt.format(today=today, sources_section=sources_section)
 
             messages = [{"role": "system", "content": system_prompt}]
 
@@ -104,7 +124,9 @@ class QueryEnrichmentService:
             response = self.llm.chat(messages, temperature=0.3)
 
             # Parse the JSON response
-            enriched_query, date_filter = self._parse_enrichment_response(response, query)
+            enriched_query, date_filter, source_ids = self._parse_enrichment_response(
+                response, query
+            )
 
             # If the enrichment is empty or too long, fall back to original
             if not enriched_query or len(enriched_query) > 500:
@@ -113,6 +135,7 @@ class QueryEnrichmentService:
                     enriched_query=query,
                     success=False,
                     date_filter=date_filter,
+                    source_ids=source_ids,
                 )
 
             return EnrichmentResult(
@@ -120,6 +143,7 @@ class QueryEnrichmentService:
                 enriched_query=enriched_query,
                 success=True,
                 date_filter=date_filter,
+                source_ids=source_ids,
             )
 
         except Exception as e:
@@ -131,17 +155,49 @@ class QueryEnrichmentService:
                 success=False,
             )
 
+    def _format_sources_section(self, available_sources: list[dict] | None) -> str:
+        """Format available sources for the enrichment prompt.
+
+        Args:
+            available_sources: List of source dicts with id, name, url
+
+        Returns:
+            Formatted sources section for the prompt
+        """
+        if not available_sources:
+            return "No sources are available for filtering."
+
+        # Limit to 50 sources to keep prompt manageable
+        max_sources = 50
+        sources_to_show = available_sources[:max_sources]
+        remaining = len(available_sources) - max_sources
+
+        lines = ["Available sources:"]
+        for source in sources_to_show:
+            source_id = source.get("id")
+            name = source.get("name", "Untitled")
+            url = source.get("url", "")
+            if url:
+                lines.append(f"- ID {source_id}: {name} ({url})")
+            else:
+                lines.append(f"- ID {source_id}: {name}")
+
+        if remaining > 0:
+            lines.append(f"... and {remaining} more sources")
+
+        return "\n".join(lines)
+
     def _parse_enrichment_response(
         self, response: str, original_query: str
-    ) -> tuple[str, DateFilter | None]:
-        """Parse the LLM JSON response into query and date filter.
+    ) -> tuple[str, DateFilter | None, list[int] | None]:
+        """Parse the LLM JSON response into query, date filter, and source IDs.
 
         Args:
             response: The raw LLM response
             original_query: Fallback query if parsing fails
 
         Returns:
-            Tuple of (enriched_query, date_filter)
+            Tuple of (enriched_query, date_filter, source_ids)
         """
         response = response.strip()
 
@@ -155,10 +211,11 @@ class QueryEnrichmentService:
             data = json.loads(response)
         except json.JSONDecodeError:
             # Fall back to treating the response as a plain query
-            return response, None
+            return response, None, None
 
         enriched_query = data.get("rewritten_query", original_query)
         date_filter = None
+        source_ids = None
 
         # Parse date filter if present
         date_data = data.get("date_filter")
@@ -175,7 +232,17 @@ class QueryEnrichmentService:
                     include_undated=True,
                 )
 
-        return enriched_query, date_filter
+        # Parse source filter if present
+        source_data = data.get("source_filter")
+        if source_data and isinstance(source_data, dict):
+            ids = source_data.get("source_ids")
+            if ids and isinstance(ids, list) and len(ids) > 0:
+                # Filter to valid integers only
+                source_ids = [int(i) for i in ids if isinstance(i, (int, float))]
+                if not source_ids:
+                    source_ids = None
+
+        return enriched_query, date_filter, source_ids
 
     def _parse_date(self, date_str: str | None) -> datetime | None:
         """Parse a date string into a datetime object.
