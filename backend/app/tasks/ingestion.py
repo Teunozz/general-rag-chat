@@ -1,16 +1,19 @@
+import logging
 from datetime import datetime
 
 from app.database import SessionLocal
+from app.models.document import Document, DocumentChunk, DocumentStatus
 from app.models.source import Source, SourceStatus, SourceType
-from app.models.document import Document, DocumentStatus, DocumentChunk
 from app.services.ingestion import (
-    WebsiteIngestionService,
     DocumentIngestionService,
     RSSIngestionService,
+    WebsiteIngestionService,
 )
 from app.services.ingestion.base import ChunkingService
 from app.services.vector_store import get_vector_store
 from app.tasks import celery_app
+
+logger = logging.getLogger(__name__)
 
 
 def _get_document_key(doc) -> str:
@@ -285,8 +288,8 @@ def ingest_source(self, source_id: int):
         db.close()
 
 
-@celery_app.task
-def refresh_rss_feeds():
+@celery_app.task(bind=True, max_retries=3)
+def refresh_rss_feeds(self):
     """Refresh all RSS feed sources."""
     db = SessionLocal()
     try:
@@ -300,6 +303,7 @@ def refresh_rss_feeds():
             .all()
         )
 
+        refreshed_count = 0
         for source in sources:
             # Check if refresh is needed based on interval
             if source.last_indexed_at:
@@ -311,8 +315,13 @@ def refresh_rss_feeds():
 
             # Trigger re-ingestion
             ingest_source.delay(source.id)
+            refreshed_count += 1
 
-        return {"refreshed": len(sources)}
+        return {"refreshed": refreshed_count, "total_rss_sources": len(sources)}
+
+    except Exception as e:
+        logger.exception("Error refreshing RSS feeds")
+        raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
 
     finally:
         db.close()
@@ -487,7 +496,7 @@ def add_timestamps_to_vectors():
                             points=[chunk.vector_id],
                         )
                     except Exception as e:
-                        print(f"[AddTimestamps] Error updating vector {chunk.vector_id}: {e}")
+                        logger.warning("Error updating vector %s: %s", chunk.vector_id, e)
                         continue
 
             updated_count += 1

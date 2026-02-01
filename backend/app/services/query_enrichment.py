@@ -1,10 +1,14 @@
 import json
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
 
 from app.services.date_filter import DateFilter
 from app.services.llm import LLMService, get_llm_service
+
+logger = logging.getLogger(__name__)
+
 
 DEFAULT_ENRICHMENT_PROMPT = """You are a query rewriting assistant for a document search system. Your task is to improve the user's search query for better retrieval, extract temporal constraints, and identify source references.
 
@@ -148,7 +152,7 @@ class QueryEnrichmentService:
 
         except Exception as e:
             # Graceful degradation: return original query on failure
-            print(f"[QueryEnrichment] Error enriching query: {e}")
+            logger.warning("Error enriching query: %s", e)
             return EnrichmentResult(
                 original_query=query,
                 enriched_query=query,

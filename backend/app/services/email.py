@@ -85,6 +85,7 @@ class EmailService:
         msg.attach(MIMEText(html, "html"))
 
         # Attempt to send with retries
+        # Note: time.sleep is acceptable here as this runs in sync Celery workers
         last_error = None
         delay = retry_delay
 
@@ -92,12 +93,12 @@ class EmailService:
             try:
                 with self._get_smtp_connection() as server:
                     server.send_message(msg)
-                logger.info(f"Email sent successfully to {to}: {subject}")
+                logger.info("Email sent successfully to %s: %s", to, subject)
                 return True
             except Exception as e:
                 last_error = e
                 logger.warning(
-                    f"Email send attempt {attempt + 1}/{retries} failed: {e}"
+                    "Email send attempt %d/%d failed: %s", attempt + 1, retries, e
                 )
                 if attempt < retries - 1:
                     time.sleep(delay)
@@ -122,13 +123,17 @@ class EmailService:
                 server.noop()
             return True, "SMTP connection successful"
         except smtplib.SMTPAuthenticationError as e:
-            return False, f"SMTP authentication failed: {e}"
+            logger.error("SMTP authentication failed: %s", e)
+            return False, "SMTP authentication failed. Check your credentials."
         except smtplib.SMTPConnectError as e:
-            return False, f"Failed to connect to SMTP server: {e}"
+            logger.error("Failed to connect to SMTP server: %s", e)
+            return False, "Failed to connect to SMTP server. Check host and port."
         except smtplib.SMTPException as e:
-            return False, f"SMTP error: {e}"
+            logger.error("SMTP error: %s", e)
+            return False, "SMTP error occurred. Check server logs for details."
         except Exception as e:
-            return False, f"Connection error: {e}"
+            logger.error("SMTP connection error: %s", e)
+            return False, "Connection error. Check server logs for details."
 
 
 def get_email_service() -> EmailService:

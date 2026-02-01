@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
@@ -6,10 +7,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, DbSession
-from app.models.settings import AppSettings
 from app.models.conversation import Conversation, Message
-from app.services.chat import get_chat_service, ChatSource
+from app.models.settings import AppSettings
+from app.services.chat import get_chat_service
 from app.services.llm import get_llm_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -186,8 +189,6 @@ def build_conversation_history(
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
     """Send a chat message and get a response."""
-    import traceback
-
     if request.stream:
         raise HTTPException(
             status_code=400,
@@ -225,13 +226,12 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
         db.flush()  # Get the ID without committing
 
     try:
-        print(f"[Chat] Getting chat service...")
+        logger.debug("Getting chat service...")
         chat_service = get_chat_service()
-        print(f"[Chat] Chat service initialized")
-    except Exception as e:
-        print(f"[Chat] Error initializing chat service: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to initialize chat service: {str(e)}")
+        logger.debug("Chat service initialized")
+    except Exception:
+        logger.exception("Error initializing chat service")
+        raise HTTPException(status_code=500, detail="Failed to initialize chat service")
 
     # Build conversation history (with summarization for long conversations)
     history = None
@@ -251,8 +251,10 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
         source_ids = conversation.source_ids
 
     try:
-        print(
-            f"[Chat] Calling chat with query: {request.message[:50]}... (history: {len(history) if history else 0} messages)"
+        logger.debug(
+            "Calling chat with query: %s... (history: %d messages)",
+            request.message[:50],
+            len(history) if history else 0,
         )
         response = chat_service.chat(
             query=request.message,
@@ -269,7 +271,7 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
             max_full_doc_chars=chat_settings["max_full_doc_chars"],
             max_context_tokens=chat_settings["max_context_tokens"],
         )
-        print(f"[Chat] Got response with {len(response.sources)} sources")
+        logger.debug("Got response with %d sources", len(response.sources))
 
         # Save messages to database if using conversation persistence
         if conversation:
@@ -329,10 +331,9 @@ async def chat(request: ChatRequest, current_user: CurrentUser, db: DbSession):
             cited_indices=response.cited_indices,
             conversation_id=conversation.id if conversation else None,
         )
-    except Exception as e:
-        print(f"[Chat] Error during chat: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+    except Exception:
+        logger.exception("Error during chat")
+        raise HTTPException(status_code=500, detail="Chat error")
 
 
 @router.post("/stream")
@@ -490,9 +491,9 @@ async def chat_stream(request: ChatRequest, current_user: CurrentUser, db: DbSes
 @router.get("/search")
 async def search(
     query: str,
+    current_user: CurrentUser,
     limit: int = 5,
     source_ids: str | None = None,
-    current_user: CurrentUser = None,
 ):
     """Search for relevant document chunks without generating a response."""
     from app.services.vector_store import get_vector_store

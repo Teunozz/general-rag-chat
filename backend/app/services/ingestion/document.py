@@ -1,7 +1,9 @@
-import os
+import logging
 from pathlib import Path
 
 from app.services.ingestion.base import BaseIngestionService, ExtractedContent
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIngestionService(BaseIngestionService):
@@ -45,7 +47,7 @@ class DocumentIngestionService(BaseIngestionService):
                     try:
                         results.append(self._extract_file(file))
                     except Exception as e:
-                        print(f"Error processing {file}: {e}")
+                        logger.warning("Error processing %s: %s", file, e)
             return results
         else:
             raise ValueError(f"Invalid path: {file_path}")
@@ -103,7 +105,10 @@ class DocumentIngestionService(BaseIngestionService):
             return self._extract_pdf_simple(file_path)
 
     def _extract_pdf_simple(self, file_path: Path) -> ExtractedContent:
-        """Simple PDF extraction fallback."""
+        """Simple PDF extraction fallback using pdftotext.
+
+        Note: subprocess.run is acceptable here as this runs in sync Celery workers.
+        """
         try:
             import subprocess
 

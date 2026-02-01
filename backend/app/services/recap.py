@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 from functools import lru_cache
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import get_settings
 from app.models.document import Document, DocumentStatus
-from app.models.recap import Recap, RecapType, RecapStatus
+from app.models.recap import Recap, RecapStatus, RecapType
 from app.services.llm import LLMService, get_llm_service
 
 settings = get_settings()
@@ -63,6 +63,7 @@ class RecapService:
         """Get documents indexed within the date range."""
         return (
             db.query(Document)
+            .options(selectinload(Document.chunks))
             .filter(
                 Document.indexed_at >= start_date,
                 Document.indexed_at < end_date,
@@ -97,12 +98,16 @@ class RecapService:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> Recap:
-        """Generate a recap for the specified period."""
+        """Generate a recap for the specified period.
+
+        Uses row-level locking to prevent race conditions when multiple
+        tasks attempt to generate the same recap simultaneously.
+        """
         # Get dates
         if start_date is None or end_date is None:
             start_date, end_date = self.get_period_dates(recap_type)
 
-        # Check if recap already exists
+        # Check if recap already exists with row-level lock to prevent races
         existing = (
             db.query(Recap)
             .filter(
@@ -110,11 +115,16 @@ class RecapService:
                 Recap.period_start == start_date.date(),
                 Recap.period_end == end_date.date(),
             )
+            .with_for_update(skip_locked=True)
             .first()
         )
 
-        if existing and existing.status == RecapStatus.READY:
-            return existing
+        if existing:
+            if existing.status == RecapStatus.READY:
+                return existing
+            if existing.status == RecapStatus.GENERATING:
+                # Another task is already generating this recap
+                return existing
 
         # Create or update recap
         if existing:

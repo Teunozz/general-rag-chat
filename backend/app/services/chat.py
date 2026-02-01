@@ -1,3 +1,4 @@
+import logging
 import re
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -7,14 +8,16 @@ from itertools import groupby
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.services.llm import LLMService, get_llm_service
 from app.services.date_filter import DateFilter
+from app.services.llm import LLMService, get_llm_service
 from app.services.query_enrichment import (
     EnrichmentResult,
     QueryEnrichmentService,
     get_query_enrichment_service,
 )
 from app.services.vector_store import SearchResult, VectorStoreService, get_vector_store
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -373,13 +376,13 @@ class ChatService:
             )
             if result.success:
                 search_query = result.enriched_query
-                print(f"[Chat] Enriched query: {query!r} -> {search_query!r}")
+                logger.debug("Enriched query: %r -> %r", query, search_query)
             if result.date_filter and result.date_filter.is_active():
                 date_filter = result.date_filter
-                print(f"[Chat] Date filter extracted: {date_filter}")
+                logger.debug("Date filter extracted: %s", date_filter)
             if result.source_ids:
                 enriched_source_ids = result.source_ids
-                print(f"[Chat] Source filter extracted: {enriched_source_ids}")
+                logger.debug("Source filter extracted: %s", enriched_source_ids)
 
         # Merge explicit source_ids with enriched ones (explicit takes precedence)
         effective_source_ids = self._merge_source_ids(source_ids, enriched_source_ids)
@@ -499,13 +502,13 @@ class ChatService:
             )
             if result.success:
                 search_query = result.enriched_query
-                print(f"[ChatStream] Enriched query: {query!r} -> {search_query!r}")
+                logger.debug("Enriched query (stream): %r -> %r", query, search_query)
             if result.date_filter and result.date_filter.is_active():
                 date_filter = result.date_filter
-                print(f"[ChatStream] Date filter extracted: {date_filter}")
+                logger.debug("Date filter extracted (stream): %s", date_filter)
             if result.source_ids:
                 enriched_source_ids = result.source_ids
-                print(f"[ChatStream] Source filter extracted: {enriched_source_ids}")
+                logger.debug("Source filter extracted (stream): %s", enriched_source_ids)
 
         # Merge explicit source_ids with enriched ones (explicit takes precedence)
         effective_source_ids = self._merge_source_ids(source_ids, enriched_source_ids)
