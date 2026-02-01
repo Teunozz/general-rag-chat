@@ -48,6 +48,9 @@ next-env.d.ts
 # IDE
 .idea/
 .vscode/
+
+# Claude Code local settings
+.claude/settings.local.json
 *.swp
 *.swo
 *~
