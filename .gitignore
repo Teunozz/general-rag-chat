@@ -40,6 +40,8 @@ node_modules/
 .next/
 out/
 .npm
+*.tsbuildinfo
+next-env.d.ts
 
 # IDE
 .idea/
