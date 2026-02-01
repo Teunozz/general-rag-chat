@@ -3,9 +3,11 @@
 import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 
 import trafilatura
 from bs4 import BeautifulSoup
+from dateutil import parser as date_parser
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class ExtractionResult:
     content: str
     is_article: bool = False
     json_ld_type: str | None = None
+    published_at: datetime | None = None
 
 
 class ContentExtractor:
@@ -65,6 +68,9 @@ class ContentExtractor:
             logger.debug(f"Skipping {url}: no matching JSON-LD article type found")
             return None
 
+        # Extract publish date from JSON-LD (with trafilatura fallback)
+        published_at = self._extract_publish_date(json_ld_data, html, url)
+
         # Extract content using trafilatura
         extracted = trafilatura.extract(
             html,
@@ -94,6 +100,7 @@ class ContentExtractor:
             content=extracted,
             is_article=is_article,
             json_ld_type=matched_type,
+            published_at=published_at,
         )
 
     def _extract_title(self, html: str, url: str, soup: BeautifulSoup) -> str:
@@ -168,6 +175,40 @@ class ContentExtractor:
                         return True, t
 
         return False, None
+
+    def _extract_publish_date(
+        self, json_ld_data: list[dict], html: str, url: str
+    ) -> datetime | None:
+        """Extract datePublished from JSON-LD, with trafilatura fallback."""
+        # Try JSON-LD first
+        for item in json_ld_data:
+            date_str = item.get("datePublished")
+            if date_str:
+                parsed = self._parse_date(date_str)
+                if parsed:
+                    return parsed
+
+            # Check @graph
+            for graph_item in item.get("@graph", []):
+                date_str = graph_item.get("datePublished")
+                if date_str:
+                    parsed = self._parse_date(date_str)
+                    if parsed:
+                        return parsed
+
+        # Fallback to trafilatura metadata
+        metadata = trafilatura.extract_metadata(html, default_url=url)
+        if metadata and metadata.date:
+            return self._parse_date(metadata.date)
+
+        return None
+
+    def _parse_date(self, date_str: str) -> datetime | None:
+        """Parse date string to datetime."""
+        try:
+            return date_parser.parse(date_str)
+        except (ValueError, TypeError):
+            return None
 
 
 def parse_article_types(article_types_str: str | None) -> set[str] | None:

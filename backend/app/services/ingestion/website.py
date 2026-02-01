@@ -176,6 +176,7 @@ class WebsiteIngestionService(BaseIngestionService):
             title=result.title,
             content=result.content,
             url=url,
+            published_at=result.published_at,
             metadata=metadata,
         )
 
@@ -222,4 +223,3 @@ class WebsiteIngestionService(BaseIngestionService):
             metadata["og_description"] = og_desc["content"]
 
         return metadata
-
