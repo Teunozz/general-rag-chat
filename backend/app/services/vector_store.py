@@ -35,18 +35,36 @@ class VectorStoreService:
         self._ensure_collection()
 
     def _ensure_collection(self):
-        """Ensure the collection exists."""
+        """Ensure the collection exists with the correct vector dimension.
+
+        If the collection exists but has a different dimension than the current
+        embedding model, it will be deleted and recreated. This handles the case
+        where the user changes embedding models and triggers a rechunk.
+        """
+        expected_dim = self.embedding_service.dimension
+
         try:
-            self.client.get_collection(self.collection_name)
+            info = self.client.get_collection(self.collection_name)
+            existing_dim = info.config.params.vectors.size
+
+            if existing_dim != expected_dim:
+                # Dimension mismatch - delete and recreate
+                self.client.delete_collection(self.collection_name)
+                self._create_collection(expected_dim)
+
         except (UnexpectedResponse, Exception):
             # Collection doesn't exist, create it
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=qdrant_models.VectorParams(
-                    size=self.embedding_service.dimension,
-                    distance=qdrant_models.Distance.COSINE,
-                ),
-            )
+            self._create_collection(expected_dim)
+
+    def _create_collection(self, dimension: int):
+        """Create the Qdrant collection with the specified dimension."""
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=qdrant_models.VectorParams(
+                size=dimension,
+                distance=qdrant_models.Distance.COSINE,
+            ),
+        )
 
     def _build_date_filter_condition(self, date_filter: DateFilter) -> qdrant_models.Filter | None:
         """Build a Qdrant filter condition for date range filtering.
@@ -391,3 +409,12 @@ class VectorStoreService:
 @lru_cache
 def get_vector_store() -> VectorStoreService:
     return VectorStoreService()
+
+
+def reset_vector_store():
+    """Reset the cached vector store service.
+
+    Call this after changing embedding settings to ensure the vector store
+    picks up the new embedding model and recreates the collection if needed.
+    """
+    get_vector_store.cache_clear()

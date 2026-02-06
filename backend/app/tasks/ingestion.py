@@ -10,7 +10,7 @@ from app.services.ingestion import (
     WebsiteIngestionService,
 )
 from app.services.ingestion.base import ChunkingService
-from app.services.vector_store import get_vector_store
+from app.services.vector_store import get_vector_store, reset_vector_store
 from app.tasks import celery_app
 
 logger = logging.getLogger(__name__)
@@ -337,6 +337,13 @@ def rechunk_source(self, source_id: int):
     Args:
         source_id: The source to rechunk
     """
+    # Reset caches to pick up any changed embedding settings.
+    # This also triggers collection recreation if dimensions changed.
+    from app.services.embeddings import reset_embedding_service
+
+    reset_embedding_service()
+    reset_vector_store()
+
     db = SessionLocal()
     vector_store = get_vector_store()
     chunking_service = ChunkingService()
@@ -439,10 +446,13 @@ def rechunk_source(self, source_id: int):
 
 @celery_app.task
 def rechunk_all_sources():
-    """Re-chunk and re-embed all sources.
+    """Re-chunk and re-embed all sources (parallel).
 
-    Triggers rechunk_source for each source. Useful after changing
+    Triggers rechunk_source for each source in parallel. Useful after changing
     embedding model or chunk size settings.
+
+    Note: For embedding model changes, prefer rechunk_all_sources_sequential
+    to avoid race conditions with cache invalidation.
     """
     db = SessionLocal()
     try:
@@ -455,6 +465,42 @@ def rechunk_all_sources():
 
     finally:
         db.close()
+
+
+@celery_app.task(bind=True)
+def rechunk_all_sources_sequential(self):
+    """Re-chunk and re-embed all sources sequentially.
+
+    Processes sources one-by-one to avoid race conditions during embedding
+    model changes. Each source is processed synchronously before moving to
+    the next, ensuring caches are properly invalidated.
+
+    This is the preferred method when changing embedding providers/models.
+    """
+    from app.services.embeddings import invalidate_embedding_caches_if_stale
+
+    # Ensure caches are up-to-date before starting
+    invalidate_embedding_caches_if_stale()
+
+    db = SessionLocal()
+    try:
+        sources = db.query(Source).filter(Source.status == SourceStatus.READY).all()
+        source_ids = [s.id for s in sources]
+    finally:
+        db.close()
+
+    results = {"processed": 0, "errors": [], "total": len(source_ids)}
+
+    for source_id in source_ids:
+        try:
+            # Call synchronously (not .delay()) to process one at a time
+            rechunk_source(source_id)
+            results["processed"] += 1
+        except Exception as e:
+            logger.exception("Error rechunking source %s", source_id)
+            results["errors"].append({"source_id": source_id, "error": str(e)})
+
+    return results
 
 
 @celery_app.task

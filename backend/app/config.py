@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     app_description: str = "Your personal knowledge base"
     debug: bool = False
 
+    # CORS - comma-separated list of allowed origins
+    cors_origins: str = ""
+
     # Database
     database_url: str = "postgresql://raguser:ragpass@localhost:5432/ragdb"
 

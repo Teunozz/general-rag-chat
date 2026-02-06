@@ -332,11 +332,25 @@ async def update_settings(settings_update: SettingsUpdate, admin_user: AdminUser
     db.commit()
     db.refresh(settings)
 
-    # Reset embedding service cache if embedding settings changed
+    # Reset embedding and vector store caches if embedding settings changed
     if embedding_changed:
-        from app.services.embeddings import reset_embedding_service
+        from app.services.embeddings import (
+            get_embedding_settings_hash,
+            reset_embedding_service,
+            set_cached_settings_version,
+        )
+        from app.services.vector_store import reset_vector_store
+        from app.tasks.cache import broadcast_cache_invalidation
 
+        # 1. Reset local caches (for API server)
         reset_embedding_service()
+        reset_vector_store()
+
+        # 2. Update Redis version key so workers detect the change
+        set_cached_settings_version(get_embedding_settings_hash())
+
+        # 3. Broadcast to workers to clear their caches immediately
+        broadcast_cache_invalidation()
 
     return settings
 

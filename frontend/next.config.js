@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   // Enable standalone output for production Docker builds
-  // output: 'standalone',
+  output: 'standalone',
 }
 
 module.exports = nextConfig

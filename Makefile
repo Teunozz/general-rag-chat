@@ -4,7 +4,7 @@
 .PHONY: help up down restart logs logs-backend logs-frontend logs-worker logs-beat \
         ps build clean dev-backend dev-frontend dev install install-backend install-frontend \
         migrate migrate-new db-shell lint format test shell-backend shell-frontend \
-        infra infra-down
+        infra infra-down prod-build prod-push prod-release
 
 # Default target
 .DEFAULT_GOAL := help
@@ -12,6 +12,11 @@
 # Colors for help output
 BLUE := \033[36m
 RESET := \033[0m
+
+# Production build settings
+DOCKER_USERNAME ?= $(shell echo $$DOCKER_USERNAME)
+VERSION ?= latest
+PLATFORM ?= linux/amd64
 
 ##@ Docker Commands
 
@@ -167,6 +172,53 @@ shell-worker: ## Open shell in Celery worker container
 
 redis-cli: ## Open Redis CLI
 	docker-compose exec redis redis-cli
+
+##@ Production Build (for NAS deployment)
+
+# Disable provenance/sbom attestations - they cause "unknown architecture" issues on Synology
+BUILDX_FLAGS := --provenance=false --sbom=false
+
+prod-build: _check-docker-username ## Build production images for AMD64
+	@echo "Building backend image $(DOCKER_USERNAME)/rag-backend:$(VERSION)..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) -f backend/Dockerfile.prod -t $(DOCKER_USERNAME)/rag-backend:$(VERSION) ./backend --load
+	@echo "Building frontend image $(DOCKER_USERNAME)/rag-frontend:$(VERSION)..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) -f frontend/Dockerfile.prod -t $(DOCKER_USERNAME)/rag-frontend:$(VERSION) ./frontend --load
+	@echo "Done! Images built locally. Run 'make prod-push' to upload to Docker Hub."
+
+prod-push: _check-docker-username ## Push production images to Docker Hub
+	docker push $(DOCKER_USERNAME)/rag-backend:$(VERSION)
+	docker push $(DOCKER_USERNAME)/rag-frontend:$(VERSION)
+	@echo "Pushed $(DOCKER_USERNAME)/rag-backend:$(VERSION) and $(DOCKER_USERNAME)/rag-frontend:$(VERSION)"
+
+prod-release: _check-docker-username ## Build and push production images in one step
+	@echo "Building and pushing backend image..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) -f backend/Dockerfile.prod -t $(DOCKER_USERNAME)/rag-backend:$(VERSION) ./backend --push
+	@echo "Building and pushing frontend image..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) -f frontend/Dockerfile.prod -t $(DOCKER_USERNAME)/rag-frontend:$(VERSION) ./frontend --push
+	@echo "Released $(DOCKER_USERNAME)/rag-backend:$(VERSION) and $(DOCKER_USERNAME)/rag-frontend:$(VERSION)"
+
+prod-release-tagged: _check-docker-username ## Build and push with both version tag and latest
+	@echo "Building and pushing backend..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) \
+		-f backend/Dockerfile.prod \
+		-t $(DOCKER_USERNAME)/rag-backend:$(VERSION) \
+		-t $(DOCKER_USERNAME)/rag-backend:latest \
+		./backend --push
+	@echo "Building and pushing frontend..."
+	docker buildx build --platform $(PLATFORM) $(BUILDX_FLAGS) \
+		-f frontend/Dockerfile.prod \
+		-t $(DOCKER_USERNAME)/rag-frontend:$(VERSION) \
+		-t $(DOCKER_USERNAME)/rag-frontend:latest \
+		./frontend --push
+	@echo "Released version $(VERSION) and updated latest tag"
+
+_check-docker-username:
+	@if [ -z "$(DOCKER_USERNAME)" ]; then \
+		echo "Error: DOCKER_USERNAME is not set"; \
+		echo "Usage: make prod-build DOCKER_USERNAME=yourusername"; \
+		echo "   or: export DOCKER_USERNAME=yourusername"; \
+		exit 1; \
+	fi
 
 ##@ Help
 

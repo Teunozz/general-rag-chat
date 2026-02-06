@@ -1,10 +1,23 @@
+import hashlib
+import logging
 from abc import ABC, abstractmethod
 
-from app.config import get_settings, EmbeddingProvider
+import redis
+
+from app.config import EmbeddingProvider, get_settings
 from app.database import SessionLocal
 from app.models.settings import AppSettings
 
 env_settings = get_settings()
+logger = logging.getLogger(__name__)
+
+# Redis key for tracking embedding settings version
+EMBEDDING_VERSION_KEY = "rag:embedding_settings_version"
+
+
+def _get_redis_client() -> redis.Redis:
+    """Get Redis client for cache coordination."""
+    return redis.from_url(env_settings.redis_url)
 
 
 def get_embedding_settings() -> tuple[str, str]:
@@ -160,3 +173,83 @@ def reset_embedding_service():
     """
     global _embedding_service_instance
     _embedding_service_instance = None
+
+
+def get_embedding_settings_hash() -> str:
+    """Compute hash of current embedding settings from database.
+
+    Returns:
+        A short hash string representing the current provider:model combination.
+    """
+    provider, model = get_embedding_settings()
+    return hashlib.md5(f"{provider}:{model}".encode()).hexdigest()[:16]
+
+
+def get_cached_settings_version() -> str | None:
+    """Get the embedding settings version from Redis.
+
+    Returns:
+        The cached version string, or None if not set.
+    """
+    try:
+        client = _get_redis_client()
+        version = client.get(EMBEDDING_VERSION_KEY)
+        return version.decode() if version else None
+    except Exception as e:
+        logger.warning("Failed to get cached settings version from Redis: %s", e)
+        return None
+
+
+def set_cached_settings_version(version: str) -> bool:
+    """Set the embedding settings version in Redis.
+
+    Args:
+        version: The version hash to store.
+
+    Returns:
+        True if successful, False otherwise.
+    """
+    try:
+        client = _get_redis_client()
+        client.set(EMBEDDING_VERSION_KEY, version)
+        return True
+    except Exception as e:
+        logger.warning("Failed to set cached settings version in Redis: %s", e)
+        return False
+
+
+def invalidate_embedding_caches_if_stale() -> bool:
+    """Check Redis version key, invalidate caches if stale.
+
+    Compares the local embedding settings hash with the Redis-stored version.
+    If they differ, resets the embedding service and vector store caches.
+
+    Returns:
+        True if caches were invalidated, False otherwise.
+    """
+    from app.services.vector_store import reset_vector_store
+
+    current_hash = get_embedding_settings_hash()
+    cached_version = get_cached_settings_version()
+
+    # If no cached version, set it and don't invalidate
+    if cached_version is None:
+        set_cached_settings_version(current_hash)
+        return False
+
+    # If versions match, no invalidation needed
+    if current_hash == cached_version:
+        return False
+
+    # Versions differ - invalidate caches
+    logger.info(
+        "Embedding settings changed (cached=%s, current=%s), invalidating caches",
+        cached_version,
+        current_hash,
+    )
+    reset_embedding_service()
+    reset_vector_store()
+
+    # Update local cache version to match
+    set_cached_settings_version(current_hash)
+    return True
