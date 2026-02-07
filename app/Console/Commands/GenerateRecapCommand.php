@@ -11,7 +11,7 @@ use function Laravel\Ai\agent;
 
 class GenerateRecapCommand extends Command
 {
-    protected $signature = 'app:generate-recap {type : daily, weekly, or monthly}';
+    protected $signature = 'app:generate-recap {type : daily, weekly, or monthly} {--force : Bypass the time check and run immediately}';
     protected $description = 'Generate a recap for the specified period if conditions are met';
 
     public function handle(SystemSettingsService $settings): int
@@ -28,8 +28,8 @@ class GenerateRecapCommand extends Command
             return self::SUCCESS;
         }
 
-        // Check if it's the right time
-        if (! $this->isRightTime($type, $settings)) {
+        // Check if it's the right time (bypass with --force)
+        if (! $this->option('force') && ! $this->isRightTime($type, $settings)) {
             return self::SUCCESS;
         }
 
@@ -47,7 +47,7 @@ class GenerateRecapCommand extends Command
         }
 
         // Get documents from period
-        $documents = Document::whereBetween('created_at', [$periodStart, $periodEnd])->get();
+        $documents = Document::with('source')->whereBetween('created_at', [$periodStart, $periodEnd])->get();
 
         if ($documents->isEmpty()) {
             $this->info('No documents in period, skipping recap.');
@@ -55,11 +55,11 @@ class GenerateRecapCommand extends Command
         }
 
         // Generate summary
-        $docSummaries = $documents->map(fn ($d): string => "- {$d->title}: " . mb_substr((string) $d->content, 0, 200))->implode("\n");
+        $docSummaries = $documents->map(fn ($d): string => "- [{$d->source->name}]({$d->url}) {$d->title}: " . mb_substr((string) $d->content, 0, 200))->implode("\n");
 
         try {
             $recapAgent = agent(
-                instructions: 'Generate a concise summary of newly ingested documents for a knowledge base. Highlight key topics, themes, and notable content. Format as a readable paragraph.',
+                instructions: 'You are writing an engaging recap newsletter for a knowledge base. From the ingested documents, pick 3-5 of the most interesting or noteworthy topics. For each topic, write a short markdown heading (##) and a brief, engaging paragraph underneath. Keep the tone informative but lively. Do not list every document — focus on the highlights that would make someone want to read more. After each paragraph, note the source(s) it drew from in italics with a markdown link, e.g. *Source: [Example Site](https://example.com)*.',
             );
 
             $response = $recapAgent->prompt(
