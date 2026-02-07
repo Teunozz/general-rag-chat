@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\Document;
 use App\Models\Source;
-use App\Spiders\Middleware\JsonLdArticleFilterMiddleware;
 use App\Spiders\Middleware\SameDomainMiddleware;
 use App\Spiders\Processors\PersistDocumentProcessor;
 use App\Spiders\WebsiteSpider;
@@ -43,12 +42,6 @@ class CrawlWebsiteJob implements ShouldQueue
                 downloaderMiddleware: [ // @phpstan-ignore argument.type (Roach PHP accepts [class, options] tuples)
                     [SameDomainMiddleware::class, ['domain' => $domain]],
                 ],
-                spiderMiddleware: [ // @phpstan-ignore argument.type
-                    [JsonLdArticleFilterMiddleware::class, [
-                        'requireArticleMarkup' => $this->source->require_article_markup,
-                        'minContentLength' => $this->source->min_content_length,
-                    ]],
-                ],
                 itemProcessors: [ // @phpstan-ignore argument.type
                     [PersistDocumentProcessor::class, ['sourceId' => $this->source->id]],
                 ],
@@ -56,6 +49,8 @@ class CrawlWebsiteJob implements ShouldQueue
 
             Roach::startSpider(WebsiteSpider::class, $overrides, context: [
                 'maxDepth' => $this->source->crawl_depth,
+                'requireArticleMarkup' => $this->source->require_article_markup,
+                'articleTypes' => $this->source->json_ld_types ?? [],
             ]);
 
             // Update counters

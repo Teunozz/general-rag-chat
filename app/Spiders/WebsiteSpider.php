@@ -3,7 +3,6 @@
 namespace App\Spiders;
 
 use App\Services\ContentExtractorService;
-use App\Spiders\Middleware\JsonLdArticleFilterMiddleware;
 use App\Spiders\Middleware\SameDomainMiddleware;
 use App\Spiders\Processors\PersistDocumentProcessor;
 use RoachPHP\Http\Request;
@@ -15,10 +14,7 @@ class WebsiteSpider extends BasicSpider
 {
     public array $startUrls = [];
 
-    /** @phpstan-ignore property.defaultValue (Roach PHP accepts partial middleware interfaces) */
-    public array $spiderMiddleware = [
-        JsonLdArticleFilterMiddleware::class,
-    ];
+    public array $spiderMiddleware = [];
 
     public array $downloaderMiddleware = [
         SameDomainMiddleware::class,
@@ -28,22 +24,33 @@ class WebsiteSpider extends BasicSpider
         PersistDocumentProcessor::class,
     ];
 
+    private const array DEFAULT_ARTICLE_TYPES = [
+        'Article',
+        'NewsArticle',
+        'BlogPosting',
+        'TechArticle',
+        'ScholarlyArticle',
+    ];
+
     public function parse(Response $response): \Generator
     {
-        $extractor = app(ContentExtractorService::class);
         $body = $response->getBody();
-        $extracted = $extractor->extract($body);
 
-        if ($extracted) {
-            yield ParseResult::item([
-                'title' => $extracted['title'],
-                'url' => (string) $response->getUri(),
-                'content' => $extracted['content'],
-                'published_at' => $extracted['published_at'],
-            ]);
+        if ($this->passesJsonLdFilter($body)) {
+            $extractor = app(ContentExtractorService::class);
+            $extracted = $extractor->extract($body);
+
+            if ($extracted) {
+                yield ParseResult::item([
+                    'title' => $extracted['title'],
+                    'url' => (string) $response->getUri(),
+                    'content' => $extracted['content'],
+                    'published_at' => $extracted['published_at'],
+                ]);
+            }
         }
 
-        // Only follow links if within crawl depth limit
+        // Always follow links regardless of JSON-LD filter
         $currentDepth = $response->getRequest()->getMeta('depth', 0);
         $maxDepth = $this->context['maxDepth'] ?? 1;
 
@@ -61,5 +68,64 @@ class WebsiteSpider extends BasicSpider
                 yield ParseResult::fromValue($request);
             }
         }
+    }
+
+    private function passesJsonLdFilter(string $body): bool
+    {
+        if (! ($this->context['requireArticleMarkup'] ?? false)) {
+            return true;
+        }
+
+        $allowedTypes = $this->context['articleTypes'] ?? [];
+        if ($allowedTypes === []) {
+            $allowedTypes = self::DEFAULT_ARTICLE_TYPES;
+        }
+
+        if (! preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/si', $body, $matches)) {
+            return false;
+        }
+
+        foreach ($matches[1] as $jsonString) {
+            $jsonLd = json_decode($jsonString, true);
+            if (! $jsonLd) {
+                continue;
+            }
+
+            if ($this->matchesAllowedType($jsonLd, $allowedTypes)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $jsonLd
+     * @param list<string> $allowedTypes
+     */
+    private function matchesAllowedType(array $jsonLd, array $allowedTypes): bool
+    {
+        $type = $jsonLd['@type'] ?? '';
+        $types = is_array($type) ? $type : [$type];
+
+        if (array_intersect($types, $allowedTypes)) {
+            return true;
+        }
+
+        if (isset($jsonLd['@graph']) && is_array($jsonLd['@graph'])) {
+            foreach ($jsonLd['@graph'] as $node) {
+                if (! is_array($node)) {
+                    continue;
+                }
+                $nodeType = $node['@type'] ?? '';
+                $nodeTypes = is_array($nodeType) ? $nodeType : [$nodeType];
+
+                if (array_intersect($nodeTypes, $allowedTypes)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

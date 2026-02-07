@@ -64,10 +64,16 @@ class SourceController extends Controller
 
     public function update(Request $request, Source $source): RedirectResponse
     {
-        $source->update($request->only([
+        $data = $request->only([
             'name', 'description', 'crawl_depth', 'refresh_interval',
-            'min_content_length', 'require_article_markup',
-        ]));
+            'min_content_length', 'require_article_markup', 'json_ld_types',
+        ]);
+
+        if (array_key_exists('json_ld_types', $data)) {
+            $data['json_ld_types'] = $this->parseJsonLdTypes($data['json_ld_types']);
+        }
+
+        $source->update($data);
 
         return redirect()->route('admin.sources.index')->with('success', 'Source updated.');
     }
@@ -110,10 +116,25 @@ class SourceController extends Controller
         return redirect()->route('admin.sources.index')->with('success', 'Re-chunk all queued.');
     }
 
+    /**
+     * @return list<string>|null
+     */
+    private function parseJsonLdTypes(?string $value): ?array
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        return array_values(array_filter(array_map(trim(...), explode(',', $value))));
+    }
+
     private function storeWebsite(StoreWebsiteSourceRequest $request): RedirectResponse
     {
+        $validated = $request->validated();
+        $validated['json_ld_types'] = $this->parseJsonLdTypes($validated['json_ld_types'] ?? null);
+
         $source = Source::create([
-            ...$request->validated(),
+            ...$validated,
             'type' => 'website',
             'status' => 'pending',
         ]);

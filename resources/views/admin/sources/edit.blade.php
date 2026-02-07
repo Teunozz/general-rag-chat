@@ -29,10 +29,21 @@
                 <input type="number" name="min_content_length" id="min_content_length" value="{{ old('min_content_length', $source->min_content_length) }}" min="0"
                     class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
             </div>
-            <div class="mb-4 flex items-center">
-                <input type="checkbox" name="require_article_markup" value="1" {{ $source->require_article_markup ? 'checked' : '' }}
-                    class="rounded border-gray-300 text-indigo-600">
-                <label class="ml-2 text-sm">Require JSON-LD article markup</label>
+            <div x-data="{ requireMarkup: {{ $source->require_article_markup ? 'true' : 'false' }} }" class="mb-4">
+                <div class="flex items-center">
+                    <input type="checkbox" name="require_article_markup" value="1" {{ $source->require_article_markup ? 'checked' : '' }}
+                        x-model="requireMarkup"
+                        class="rounded border-gray-300 text-indigo-600">
+                    <label class="ml-2 text-sm">Require JSON-LD article markup</label>
+                </div>
+                <div x-show="requireMarkup" x-cloak class="mt-2">
+                    <label for="json_ld_types" class="block text-sm font-medium mb-1">Allowed JSON-LD Types</label>
+                    <input type="text" name="json_ld_types" id="json_ld_types"
+                        value="{{ old('json_ld_types', $source->json_ld_types ? implode(', ', $source->json_ld_types) : '') }}"
+                        placeholder="Article, NewsArticle, BlogPosting, TechArticle, ScholarlyArticle"
+                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                    <p class="mt-1 text-xs text-gray-500">Comma-separated Schema.org types. Leave empty for defaults (Article, NewsArticle, BlogPosting, TechArticle, ScholarlyArticle).</p>
+                </div>
             </div>
             @endif
 

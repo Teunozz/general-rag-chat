@@ -21,6 +21,7 @@ class StoreWebsiteSourceRequest extends FormRequest
             'crawl_depth' => ['required', 'integer', 'min:1', 'max:10'],
             'min_content_length' => ['required', 'integer', 'min:0'],
             'require_article_markup' => ['boolean'],
+            'json_ld_types' => ['nullable', 'string', 'max:500'],
         ];
     }
 }
