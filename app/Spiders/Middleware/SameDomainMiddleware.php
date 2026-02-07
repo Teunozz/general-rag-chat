@@ -2,16 +2,15 @@
 
 namespace App\Spiders\Middleware;
 
+use RoachPHP\Downloader\Middleware\RequestMiddlewareInterface;
 use RoachPHP\Http\Request;
-use RoachPHP\Http\Response;
-use RoachPHP\Spider\Middleware\RequestMiddlewareInterface;
 use RoachPHP\Support\Configurable;
 
 class SameDomainMiddleware implements RequestMiddlewareInterface
 {
     use Configurable;
 
-    public function handleRequest(Request $request, Response $response): Request
+    public function handleRequest(Request $request): Request
     {
         $allowedDomain = $this->option('domain');
 

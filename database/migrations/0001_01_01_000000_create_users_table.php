@@ -8,13 +8,11 @@ use Illuminate\Support\Facades\Schema;
 return new class () extends Migration {
     public function up(): void
     {
-        DB::statement('CREATE EXTENSION IF NOT EXISTS vector');
-
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->text('name');
             $table->text('email');
-            $table->string('email_index', 255)->unique();
+            $table->string('email_index', 255)->nullable()->unique();
             $table->string('name_index', 255)->nullable()->index();
             $table->string('password');
             $table->string('role', 20)->default('user');
@@ -38,6 +36,5 @@ return new class () extends Migration {
     {
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('users');
-        DB::statement('DROP EXTENSION IF EXISTS vector');
     }
 };

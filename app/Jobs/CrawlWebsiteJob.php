@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\Source;
 use App\Spiders\Middleware\JsonLdArticleFilterMiddleware;
-use App\Spiders\Middleware\MaxCrawlDepthMiddleware;
 use App\Spiders\Middleware\SameDomainMiddleware;
 use App\Spiders\Processors\PersistDocumentProcessor;
 use App\Spiders\WebsiteSpider;
@@ -41,7 +40,6 @@ class CrawlWebsiteJob implements ShouldQueue
             $overrides = new Overrides(
                 startUrls: [$this->source->url],
                 spiderMiddleware: [
-                    [MaxCrawlDepthMiddleware::class, ['maxDepth' => $this->source->crawl_depth]],
                     [JsonLdArticleFilterMiddleware::class, [
                         'requireArticleMarkup' => $this->source->require_article_markup,
                         'minContentLength' => $this->source->min_content_length,
@@ -55,7 +53,9 @@ class CrawlWebsiteJob implements ShouldQueue
                 ],
             );
 
-            Roach::startSpider(WebsiteSpider::class, $overrides);
+            Roach::startSpider(WebsiteSpider::class, $overrides, context: [
+                'maxDepth' => $this->source->crawl_depth,
+            ]);
 
             // Update counters
             $this->source->update([

@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
 use Laminas\Feed\Reader\Reader;
 
 class FeedParserService
 {
     public function parse(string $feedUrl): array
     {
-        $feed = Reader::import($feedUrl);
+        $response = Http::timeout(30)->get($feedUrl);
+        $response->throw();
+
+        $feed = Reader::importString($response->body());
         $entries = [];
 
         foreach ($feed as $entry) {
