@@ -1,67 +1,56 @@
 <?php
 
-namespace Tests\Feature\Auth;
-
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class ProfileTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_profile_edit_page_is_displayed(): void
-    {
-        $user = User::factory()->create();
+test('profile edit page is displayed', function () {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('profile.edit'));
+    $response = $this->actingAs($user)->get(route('profile.edit'));
 
-        $response->assertOk();
-    }
+    $response->assertOk();
+});
 
-    public function test_profile_can_be_updated(): void
-    {
-        $user = User::factory()->create();
+test('profile can be updated', function () {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->put(route('profile.update'), [
-            'name' => 'Updated Name',
-            'email' => 'updated@example.com',
-        ]);
+    $response = $this->actingAs($user)->put(route('profile.update'), [
+        'name' => 'Updated Name',
+        'email' => 'updated@example.com',
+    ]);
 
-        $response->assertRedirect(route('profile.edit'));
-        $user->refresh();
-        $this->assertSame('Updated Name', $user->name);
-        $this->assertSame('updated@example.com', $user->email);
-    }
+    $response->assertRedirect(route('profile.edit'));
+    $user->refresh();
+    expect($user->name)->toBe('Updated Name')
+        ->and($user->email)->toBe('updated@example.com');
+});
 
-    public function test_name_is_required(): void
-    {
-        $user = User::factory()->create();
+test('name is required', function () {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->put(route('profile.update'), [
-            'name' => '',
-            'email' => 'test@example.com',
-        ]);
+    $response = $this->actingAs($user)->put(route('profile.update'), [
+        'name' => '',
+        'email' => 'test@example.com',
+    ]);
 
-        $response->assertSessionHasErrors('name');
-    }
+    $response->assertSessionHasErrors('name');
+});
 
-    public function test_email_must_be_valid(): void
-    {
-        $user = User::factory()->create();
+test('email must be valid', function () {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->put(route('profile.update'), [
-            'name' => 'Test',
-            'email' => 'not-an-email',
-        ]);
+    $response = $this->actingAs($user)->put(route('profile.update'), [
+        'name' => 'Test',
+        'email' => 'not-an-email',
+    ]);
 
-        $response->assertSessionHasErrors('email');
-    }
+    $response->assertSessionHasErrors('email');
+});
 
-    public function test_guest_cannot_access_profile(): void
-    {
-        $response = $this->get(route('profile.edit'));
+test('guest cannot access profile', function () {
+    $response = $this->get(route('profile.edit'));
 
-        $response->assertRedirect(route('login'));
-    }
-}
+    $response->assertRedirect(route('login'));
+});

@@ -1,48 +1,38 @@
 <?php
 
-namespace Tests\Feature\Middleware;
-
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class ForcePasswordChangeTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_user_with_must_change_password_is_redirected(): void
-    {
-        $user = User::factory()->mustChangePassword()->create();
+test('user with must change password is redirected', function () {
+    $user = User::factory()->mustChangePassword()->create();
 
-        $response = $this->actingAs($user)->get(route('chat.index'));
+    $response = $this->actingAs($user)->get(route('chat.index'));
 
-        $response->assertRedirect(route('password.change'));
-    }
+    $response->assertRedirect(route('password.change'));
+});
 
-    public function test_user_without_must_change_password_passes_through(): void
-    {
-        $user = User::factory()->create(['must_change_password' => false]);
+test('user without must change password passes through', function () {
+    $user = User::factory()->create(['must_change_password' => false]);
 
-        $response = $this->actingAs($user)->get(route('chat.index'));
+    $response = $this->actingAs($user)->get(route('chat.index'));
 
-        $response->assertOk();
-    }
+    $response->assertOk();
+});
 
-    public function test_password_change_route_is_accessible_when_forced(): void
-    {
-        $user = User::factory()->mustChangePassword()->create();
+test('password change route is accessible when forced', function () {
+    $user = User::factory()->mustChangePassword()->create();
 
-        $response = $this->actingAs($user)->get(route('password.change'));
+    $response = $this->actingAs($user)->get(route('password.change'));
 
-        $response->assertOk();
-    }
+    $response->assertOk();
+});
 
-    public function test_logout_route_is_accessible_when_forced(): void
-    {
-        $user = User::factory()->mustChangePassword()->create();
+test('logout route is accessible when forced', function () {
+    $user = User::factory()->mustChangePassword()->create();
 
-        $response = $this->actingAs($user)->post(route('logout'));
+    $response = $this->actingAs($user)->post(route('logout'));
 
-        $response->assertRedirect(route('login'));
-    }
-}
+    $response->assertRedirect(route('login'));
+});

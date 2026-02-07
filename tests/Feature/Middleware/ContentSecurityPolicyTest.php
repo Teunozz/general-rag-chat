@@ -1,33 +1,23 @@
 <?php
 
-namespace Tests\Feature\Middleware;
+test('csp header is present', function () {
+    $response = $this->get('/health');
 
-use Tests\TestCase;
+    $response->assertHeader('Content-Security-Policy');
+});
 
-class ContentSecurityPolicyTest extends TestCase
-{
-    public function test_csp_header_is_present(): void
-    {
-        $response = $this->get('/health');
+test('csp header includes frame ancestors none', function () {
+    $response = $this->get('/health');
 
-        $response->assertHeader('Content-Security-Policy');
-    }
+    $csp = $response->headers->get('Content-Security-Policy');
 
-    public function test_csp_header_includes_frame_ancestors_none(): void
-    {
-        $response = $this->get('/health');
+    expect($csp)->toContain("frame-ancestors 'none'");
+});
 
-        $csp = $response->headers->get('Content-Security-Policy');
+test('csp header restricts default src to self', function () {
+    $response = $this->get('/health');
 
-        $this->assertStringContainsString("frame-ancestors 'none'", $csp);
-    }
+    $csp = $response->headers->get('Content-Security-Policy');
 
-    public function test_csp_header_restricts_default_src_to_self(): void
-    {
-        $response = $this->get('/health');
-
-        $csp = $response->headers->get('Content-Security-Policy');
-
-        $this->assertStringContainsString("default-src 'self'", $csp);
-    }
-}
+    expect($csp)->toContain("default-src 'self'");
+});

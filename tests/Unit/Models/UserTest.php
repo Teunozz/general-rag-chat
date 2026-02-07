@@ -1,105 +1,85 @@
 <?php
 
-namespace Tests\Unit\Models;
-
 use App\Models\Conversation;
 use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class UserTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_user_can_be_created_with_factory(): void
-    {
-        $user = User::factory()->create();
+test('user can be created with factory', function () {
+    $user = User::factory()->create();
 
-        $this->assertDatabaseHas('users', ['id' => $user->id]);
-    }
+    $this->assertDatabaseHas('users', ['id' => $user->id]);
+});
 
-    public function test_password_is_hashed(): void
-    {
-        $user = User::factory()->create(['password' => 'plaintext123']);
+test('password is hashed', function () {
+    $user = User::factory()->create(['password' => 'plaintext123']);
 
-        $this->assertNotSame('plaintext123', $user->getRawOriginal('password'));
-    }
+    expect($user->getRawOriginal('password'))->not->toBe('plaintext123');
+});
 
-    public function test_is_active_is_cast_to_boolean(): void
-    {
-        $user = User::factory()->create(['is_active' => true]);
+test('is active is cast to boolean', function () {
+    $user = User::factory()->create(['is_active' => true]);
 
-        $this->assertIsBool($user->is_active);
-        $this->assertTrue($user->is_active);
-    }
+    expect($user->is_active)->toBeBool()->toBeTrue();
+});
 
-    public function test_must_change_password_is_cast_to_boolean(): void
-    {
-        $user = User::factory()->mustChangePassword()->create();
+test('must change password is cast to boolean', function () {
+    $user = User::factory()->mustChangePassword()->create();
 
-        $this->assertIsBool($user->must_change_password);
-        $this->assertTrue($user->must_change_password);
-    }
+    expect($user->must_change_password)->toBeBool()->toBeTrue();
+});
 
-    public function test_is_admin_returns_true_for_admin_role(): void
-    {
-        $admin = User::factory()->admin()->create();
+test('is admin returns true for admin role', function () {
+    $admin = User::factory()->admin()->create();
 
-        $this->assertTrue($admin->isAdmin());
-    }
+    expect($admin->isAdmin())->toBeTrue();
+});
 
-    public function test_is_admin_returns_false_for_user_role(): void
-    {
-        $user = User::factory()->create(['role' => 'user']);
+test('is admin returns false for user role', function () {
+    $user = User::factory()->create(['role' => 'user']);
 
-        $this->assertFalse($user->isAdmin());
-    }
+    expect($user->isAdmin())->toBeFalse();
+});
 
-    public function test_user_has_many_conversations(): void
-    {
-        $user = User::factory()->create();
-        Conversation::create(['user_id' => $user->id, 'title' => 'Test']);
+test('user has many conversations', function () {
+    $user = User::factory()->create();
+    Conversation::create(['user_id' => $user->id, 'title' => 'Test']);
 
-        $this->assertCount(1, $user->conversations);
-        $this->assertInstanceOf(Conversation::class, $user->conversations->first());
-    }
+    expect($user->conversations)->toHaveCount(1)
+        ->and($user->conversations->first())->toBeInstanceOf(Conversation::class);
+});
 
-    public function test_user_has_one_notification_preference(): void
-    {
-        $user = User::factory()->create();
-        NotificationPreference::create(['user_id' => $user->id]);
+test('user has one notification preference', function () {
+    $user = User::factory()->create();
+    NotificationPreference::create(['user_id' => $user->id]);
 
-        $this->assertInstanceOf(NotificationPreference::class, $user->notificationPreference);
-    }
+    expect($user->notificationPreference)->toBeInstanceOf(NotificationPreference::class);
+});
 
-    public function test_ciphersweet_encrypts_name_and_email(): void
-    {
-        $user = User::factory()->create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-        ]);
+test('ciphersweet encrypts name and email', function () {
+    $user = User::factory()->create([
+        'name' => 'John Doe',
+        'email' => 'john@example.com',
+    ]);
 
-        // The decrypted values should match
-        $freshUser = User::find($user->id);
-        $this->assertSame('John Doe', $freshUser->name);
-        $this->assertSame('john@example.com', $freshUser->email);
-    }
+    $freshUser = User::find($user->id);
+    expect($freshUser->name)->toBe('John Doe')
+        ->and($freshUser->email)->toBe('john@example.com');
+});
 
-    public function test_blind_index_lookup_works(): void
-    {
-        User::factory()->create(['email' => 'unique@example.com']);
+test('blind index lookup works', function () {
+    User::factory()->create(['email' => 'unique@example.com']);
 
-        $found = User::whereBlind('email', 'email_index', 'unique@example.com')->first();
+    $found = User::whereBlind('email', 'email_index', 'unique@example.com')->first();
 
-        $this->assertNotNull($found);
-        $this->assertSame('unique@example.com', $found->email);
-    }
+    expect($found)->not->toBeNull()
+        ->and($found->email)->toBe('unique@example.com');
+});
 
-    public function test_blind_index_returns_null_for_nonexistent_email(): void
-    {
-        $found = User::whereBlind('email', 'email_index', 'nobody@example.com')->first();
+test('blind index returns null for nonexistent email', function () {
+    $found = User::whereBlind('email', 'email_index', 'nobody@example.com')->first();
 
-        $this->assertNull($found);
-    }
-}
+    expect($found)->toBeNull();
+});

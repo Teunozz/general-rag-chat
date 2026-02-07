@@ -1,16 +1,8 @@
 <?php
 
-namespace Tests\Feature;
+test('health endpoint returns ok', function () {
+    $response = $this->get('/health');
 
-use Tests\TestCase;
-
-class ExampleTest extends TestCase
-{
-    public function test_health_endpoint_returns_ok(): void
-    {
-        $response = $this->get('/health');
-
-        $response->assertStatus(200);
-        $response->assertJson(['status' => 'ok']);
-    }
-}
+    $response->assertStatus(200);
+    $response->assertJson(['status' => 'ok']);
+});

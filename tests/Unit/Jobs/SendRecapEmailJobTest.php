@@ -1,117 +1,103 @@
 <?php
 
-namespace Tests\Unit\Jobs;
-
 use App\Jobs\SendRecapEmailJob;
 use App\Mail\RecapMail;
 use App\Models\NotificationPreference;
 use App\Models\Recap;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\SystemSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
-use Tests\TestCase;
 
-class SendRecapEmailJobTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    private Recap $recap;
+beforeEach(function () {
+    $this->recap = Recap::create([
+        'type' => 'daily',
+        'period_start' => now()->subDay()->startOfDay(),
+        'period_end' => now()->subDay()->endOfDay(),
+        'document_count' => 3,
+        'summary' => 'Test recap summary.',
+    ]);
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->recap = Recap::create([
-            'type' => 'daily',
-            'period_start' => now()->subDay()->startOfDay(),
-            'period_end' => now()->subDay()->endOfDay(),
-            'document_count' => 3,
-            'summary' => 'Test recap summary.',
-        ]);
-    }
+test('sends email to opted in users', function () {
+    Mail::fake();
 
-    public function test_sends_email_to_opted_in_users(): void
-    {
-        Mail::fake();
+    $user = User::factory()->create();
+    NotificationPreference::create([
+        'user_id' => $user->id,
+        'email_enabled' => true,
+        'daily_recap' => true,
+    ]);
 
-        $user = User::factory()->create();
-        NotificationPreference::create([
-            'user_id' => $user->id,
-            'email_enabled' => true,
-            'daily_recap' => true,
-        ]);
+    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
 
-        (new SendRecapEmailJob($this->recap))->handle(app(\App\Services\SystemSettingsService::class));
+    Mail::assertQueued(RecapMail::class);
+});
 
-        Mail::assertQueued(RecapMail::class);
-    }
+test('skips users with email disabled', function () {
+    Mail::fake();
 
-    public function test_skips_users_with_email_disabled(): void
-    {
-        Mail::fake();
+    $user = User::factory()->create();
+    NotificationPreference::create([
+        'user_id' => $user->id,
+        'email_enabled' => false,
+        'daily_recap' => true,
+    ]);
 
-        $user = User::factory()->create();
-        NotificationPreference::create([
-            'user_id' => $user->id,
-            'email_enabled' => false,
-            'daily_recap' => true,
-        ]);
+    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
 
-        (new SendRecapEmailJob($this->recap))->handle(app(\App\Services\SystemSettingsService::class));
+    Mail::assertNothingQueued();
+});
 
-        Mail::assertNothingQueued();
-    }
+test('skips users with recap type disabled', function () {
+    Mail::fake();
 
-    public function test_skips_users_with_recap_type_disabled(): void
-    {
-        Mail::fake();
+    $user = User::factory()->create();
+    NotificationPreference::create([
+        'user_id' => $user->id,
+        'email_enabled' => true,
+        'daily_recap' => false,
+    ]);
 
-        $user = User::factory()->create();
-        NotificationPreference::create([
-            'user_id' => $user->id,
-            'email_enabled' => true,
-            'daily_recap' => false, // Daily disabled
-        ]);
+    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
 
-        (new SendRecapEmailJob($this->recap))->handle(app(\App\Services\SystemSettingsService::class));
+    Mail::assertNothingQueued();
+});
 
-        Mail::assertNothingQueued();
-    }
+test('skips inactive users', function () {
+    Mail::fake();
 
-    public function test_skips_inactive_users(): void
-    {
-        Mail::fake();
+    $user = User::factory()->inactive()->create();
+    NotificationPreference::create([
+        'user_id' => $user->id,
+        'email_enabled' => true,
+        'daily_recap' => true,
+    ]);
 
-        $user = User::factory()->inactive()->create();
-        NotificationPreference::create([
-            'user_id' => $user->id,
-            'email_enabled' => true,
-            'daily_recap' => true,
-        ]);
+    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
 
-        (new SendRecapEmailJob($this->recap))->handle(app(\App\Services\SystemSettingsService::class));
+    Mail::assertNothingQueued();
+});
 
-        Mail::assertNothingQueued();
-    }
+test('respects system email toggle', function () {
+    Mail::fake();
 
-    public function test_respects_system_email_toggle(): void
-    {
-        Mail::fake();
+    SystemSetting::updateOrCreate(
+        ['group' => 'email', 'key' => 'system_enabled'],
+        ['value' => json_encode(false)],
+    );
 
-        SystemSetting::updateOrCreate(
-            ['group' => 'email', 'key' => 'system_enabled'],
-            ['value' => json_encode(false)],
-        );
+    $user = User::factory()->create();
+    NotificationPreference::create([
+        'user_id' => $user->id,
+        'email_enabled' => true,
+        'daily_recap' => true,
+    ]);
 
-        $user = User::factory()->create();
-        NotificationPreference::create([
-            'user_id' => $user->id,
-            'email_enabled' => true,
-            'daily_recap' => true,
-        ]);
+    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
 
-        (new SendRecapEmailJob($this->recap))->handle(app(\App\Services\SystemSettingsService::class));
-
-        Mail::assertNothingQueued();
-    }
-}
+    Mail::assertNothingQueued();
+});

@@ -1,104 +1,80 @@
 <?php
 
-namespace Tests\Unit\Services;
-
 use App\Services\ChunkingService;
-use PHPUnit\Framework\TestCase;
 
-class ChunkingServiceTest extends TestCase
-{
-    private ChunkingService $service;
+beforeEach(function () {
+    $this->service = new ChunkingService();
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->service = new ChunkingService();
+test('splits content into chunks', function () {
+    $content = str_repeat('Hello world. ', 200);
+
+    $chunks = $this->service->split($content, 500, 100);
+
+    expect($chunks)->not->toBeEmpty()
+        ->and(count($chunks))->toBeGreaterThan(1);
+});
+
+test('empty content returns empty array', function () {
+    expect($this->service->split(''))->toBe([])
+        ->and($this->service->split('   '))->toBe([]);
+});
+
+test('chunks have required keys', function () {
+    $chunks = $this->service->split('This is test content for chunking.');
+
+    expect($chunks)->not->toBeEmpty();
+    foreach ($chunks as $chunk) {
+        expect($chunk)->toHaveKeys(['content', 'position', 'token_count']);
     }
+});
 
-    public function test_splits_content_into_chunks(): void
-    {
-        $content = str_repeat('Hello world. ', 200);
+test('positions are sequential', function () {
+    $content = str_repeat("Paragraph one content here.\n\nParagraph two content here.\n\n", 50);
+    $chunks = $this->service->split($content, 200, 0);
 
-        $chunks = $this->service->split($content, 500, 100);
-
-        $this->assertNotEmpty($chunks);
-        $this->assertGreaterThan(1, count($chunks));
+    foreach ($chunks as $i => $chunk) {
+        expect($chunk['position'])->toBe($i);
     }
+});
 
-    public function test_empty_content_returns_empty_array(): void
-    {
-        $this->assertSame([], $this->service->split(''));
-        $this->assertSame([], $this->service->split('   '));
-    }
+test('splits by paragraphs', function () {
+    $content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
 
-    public function test_chunks_have_required_keys(): void
-    {
-        $chunks = $this->service->split('This is test content for chunking.');
+    $chunks = $this->service->split($content, 5000, 0);
 
-        $this->assertNotEmpty($chunks);
-        foreach ($chunks as $chunk) {
-            $this->assertArrayHasKey('content', $chunk);
-            $this->assertArrayHasKey('position', $chunk);
-            $this->assertArrayHasKey('token_count', $chunk);
-        }
-    }
+    expect($chunks)->toHaveCount(1)
+        ->and($chunks[0]['content'])->toContain('First paragraph');
+});
 
-    public function test_positions_are_sequential(): void
-    {
-        $content = str_repeat("Paragraph one content here.\n\nParagraph two content here.\n\n", 50);
-        $chunks = $this->service->split($content, 200, 0);
+test('splits long paragraphs by sentences', function () {
+    $sentence = 'This is a moderately long sentence that repeats. ';
+    $content = str_repeat($sentence, 30);
 
-        foreach ($chunks as $i => $chunk) {
-            $this->assertSame($i, $chunk['position']);
-        }
-    }
+    $chunks = $this->service->split($content, 500, 0);
 
-    public function test_splits_by_paragraphs(): void
-    {
-        $content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
+    expect(count($chunks))->toBeGreaterThan(1);
+});
 
-        $chunks = $this->service->split($content, 5000, 0);
+test('count tokens approximation', function () {
+    expect($this->service->countTokens('Hi'))->toBe(1)
+        ->and($this->service->countTokens('Hello world!'))->toBe(3)
+        ->and($this->service->countTokens(str_repeat('a', 100)))->toBe(25);
+});
 
-        // Should fit in one chunk since total is well under 5000 chars
-        $this->assertCount(1, $chunks);
-        $this->assertStringContainsString('First paragraph', $chunks[0]['content']);
-    }
+test('overlap produces overlapping chunks', function () {
+    $content = str_repeat('Word ', 200);
 
-    public function test_splits_long_paragraphs_by_sentences(): void
-    {
-        $sentence = 'This is a moderately long sentence that repeats. ';
-        $content = str_repeat($sentence, 30); // ~1500 chars, one "paragraph"
+    $noOverlap = $this->service->split($content, 200, 0);
+    $withOverlap = $this->service->split($content, 200, 50);
 
-        $chunks = $this->service->split($content, 500, 0);
+    expect(count($withOverlap))->toBeGreaterThanOrEqual(count($noOverlap));
+});
 
-        $this->assertGreaterThan(1, count($chunks));
-    }
+test('short content produces single chunk', function () {
+    $chunks = $this->service->split('Short text.');
 
-    public function test_count_tokens_approximation(): void
-    {
-        // ~4 chars per token
-        $this->assertSame(1, $this->service->countTokens('Hi'));
-        $this->assertSame(3, $this->service->countTokens('Hello world!'));
-        $this->assertSame(25, $this->service->countTokens(str_repeat('a', 100)));
-    }
-
-    public function test_overlap_produces_overlapping_chunks(): void
-    {
-        $content = str_repeat('Word ', 200); // ~1000 chars
-
-        $noOverlap = $this->service->split($content, 200, 0);
-        $withOverlap = $this->service->split($content, 200, 50);
-
-        // With overlap there should be more chunks (overlap causes re-inclusion of content)
-        $this->assertGreaterThanOrEqual(count($noOverlap), count($withOverlap));
-    }
-
-    public function test_short_content_produces_single_chunk(): void
-    {
-        $chunks = $this->service->split('Short text.');
-
-        $this->assertCount(1, $chunks);
-        $this->assertSame('Short text.', $chunks[0]['content']);
-        $this->assertSame(0, $chunks[0]['position']);
-    }
-}
+    expect($chunks)->toHaveCount(1)
+        ->and($chunks[0]['content'])->toBe('Short text.')
+        ->and($chunks[0]['position'])->toBe(0);
+});

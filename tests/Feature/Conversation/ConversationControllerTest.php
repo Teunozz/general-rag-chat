@@ -1,113 +1,98 @@
 <?php
 
-namespace Tests\Feature\Conversation;
-
-use App\Models\Conversation;
 use App\Models\Source;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class ConversationControllerTest extends TestCase
-{
-    use RefreshDatabase;
+uses(RefreshDatabase::class);
 
-    public function test_index_shows_user_conversations(): void
-    {
-        $user = User::factory()->create();
-        $user->conversations()->create(['title' => 'My Conversation']);
+test('index shows user conversations', function () {
+    $user = User::factory()->create();
+    $user->conversations()->create(['title' => 'My Conversation']);
 
-        $response = $this->actingAs($user)->get(route('conversations.index'));
+    $response = $this->actingAs($user)->get(route('conversations.index'));
 
-        $response->assertOk();
-        $response->assertSee('My Conversation');
-    }
+    $response->assertOk();
+    $response->assertSee('My Conversation');
+});
 
-    public function test_store_creates_conversation(): void
-    {
-        $user = User::factory()->create();
+test('store creates conversation', function () {
+    $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson(route('conversations.store'));
+    $response = $this->actingAs($user)->postJson(route('conversations.store'));
 
-        $response->assertOk();
-        $response->assertJsonStructure(['id']);
-        $this->assertDatabaseHas('conversations', ['user_id' => $user->id]);
-    }
+    $response->assertOk();
+    $response->assertJsonStructure(['id']);
+    $this->assertDatabaseHas('conversations', ['user_id' => $user->id]);
+});
 
-    public function test_update_conversation_title(): void
-    {
-        $user = User::factory()->create();
-        $conversation = $user->conversations()->create(['title' => 'Old Title']);
+test('update conversation title', function () {
+    $user = User::factory()->create();
+    $conversation = $user->conversations()->create(['title' => 'Old Title']);
 
-        $response = $this->actingAs($user)->put(route('conversations.update', $conversation), [
-            'title' => 'New Title',
-        ]);
+    $response = $this->actingAs($user)->put(route('conversations.update', $conversation), [
+        'title' => 'New Title',
+    ]);
 
-        $response->assertRedirect();
-        $this->assertDatabaseHas('conversations', [
-            'id' => $conversation->id,
-            'title' => 'New Title',
-        ]);
-    }
+    $response->assertRedirect();
+    $this->assertDatabaseHas('conversations', [
+        'id' => $conversation->id,
+        'title' => 'New Title',
+    ]);
+});
 
-    public function test_update_conversation_sources(): void
-    {
-        $user = User::factory()->create();
-        $conversation = $user->conversations()->create(['title' => 'Test']);
-        $source = Source::create([
-            'name' => 'Test Source',
-            'type' => 'website',
-            'url' => 'https://example.com',
-            'status' => 'ready',
-        ]);
+test('update conversation sources', function () {
+    $user = User::factory()->create();
+    $conversation = $user->conversations()->create(['title' => 'Test']);
+    $source = Source::create([
+        'name' => 'Test Source',
+        'type' => 'website',
+        'url' => 'https://example.com',
+        'status' => 'ready',
+    ]);
 
-        $response = $this->actingAs($user)->put(route('conversations.update', $conversation), [
-            'source_ids' => [$source->id],
-        ]);
+    $response = $this->actingAs($user)->put(route('conversations.update', $conversation), [
+        'source_ids' => [$source->id],
+    ]);
 
-        $response->assertRedirect();
-        $this->assertTrue($conversation->sources->contains($source->id));
-    }
+    $response->assertRedirect();
+    expect($conversation->sources->contains($source->id))->toBeTrue();
+});
 
-    public function test_delete_conversation(): void
-    {
-        $user = User::factory()->create();
-        $conversation = $user->conversations()->create(['title' => 'Delete Me']);
+test('delete conversation', function () {
+    $user = User::factory()->create();
+    $conversation = $user->conversations()->create(['title' => 'Delete Me']);
 
-        $response = $this->actingAs($user)->delete(route('conversations.destroy', $conversation));
+    $response = $this->actingAs($user)->delete(route('conversations.destroy', $conversation));
 
-        $response->assertRedirect(route('conversations.index'));
-        $this->assertDatabaseMissing('conversations', ['id' => $conversation->id]);
-    }
+    $response->assertRedirect(route('conversations.index'));
+    $this->assertDatabaseMissing('conversations', ['id' => $conversation->id]);
+});
 
-    public function test_user_cannot_update_others_conversation(): void
-    {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-        $conversation = $owner->conversations()->create(['title' => 'Private']);
+test('user cannot update others conversation', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $conversation = $owner->conversations()->create(['title' => 'Private']);
 
-        $response = $this->actingAs($other)->put(route('conversations.update', $conversation), [
-            'title' => 'Hacked',
-        ]);
+    $response = $this->actingAs($other)->put(route('conversations.update', $conversation), [
+        'title' => 'Hacked',
+    ]);
 
-        $response->assertForbidden();
-    }
+    $response->assertForbidden();
+});
 
-    public function test_user_cannot_delete_others_conversation(): void
-    {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-        $conversation = $owner->conversations()->create(['title' => 'Private']);
+test('user cannot delete others conversation', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $conversation = $owner->conversations()->create(['title' => 'Private']);
 
-        $response = $this->actingAs($other)->delete(route('conversations.destroy', $conversation));
+    $response = $this->actingAs($other)->delete(route('conversations.destroy', $conversation));
 
-        $response->assertForbidden();
-    }
+    $response->assertForbidden();
+});
 
-    public function test_guest_cannot_access_conversations(): void
-    {
-        $response = $this->get(route('conversations.index'));
+test('guest cannot access conversations', function () {
+    $response = $this->get(route('conversations.index'));
 
-        $response->assertRedirect(route('login'));
-    }
-}
+    $response->assertRedirect(route('login'));
+});

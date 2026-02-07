@@ -1,30 +1,20 @@
 <?php
 
-namespace Tests\Feature;
+test('health endpoint returns 200 json', function () {
+    $response = $this->getJson('/health');
 
-use Tests\TestCase;
+    $response->assertOk();
+    $response->assertExactJson(['status' => 'ok']);
+});
 
-class HealthCheckTest extends TestCase
-{
-    public function test_health_endpoint_returns_200_json(): void
-    {
-        $response = $this->getJson('/health');
+test('health endpoint does not require auth', function () {
+    $response = $this->getJson('/health');
 
-        $response->assertOk();
-        $response->assertExactJson(['status' => 'ok']);
-    }
+    $response->assertOk();
+});
 
-    public function test_health_endpoint_does_not_require_auth(): void
-    {
-        $response = $this->getJson('/health');
+test('health endpoint returns json content type', function () {
+    $response = $this->getJson('/health');
 
-        $response->assertOk();
-    }
-
-    public function test_health_endpoint_returns_json_content_type(): void
-    {
-        $response = $this->getJson('/health');
-
-        $response->assertHeader('Content-Type', 'application/json');
-    }
-}
+    $response->assertHeader('Content-Type', 'application/json');
+});
