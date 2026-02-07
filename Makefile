@@ -18,7 +18,7 @@ DOCKER      = docker
         vendor vendor-update \
         queue schedule \
         create-admin refresh-feeds recap \
-        cache-clear setup fresh
+        ide-helper cache-clear setup fresh
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +159,13 @@ refresh-feeds: ## Refresh all RSS feeds
 
 recap: ## Generate recap emails (usage: make recap t="daily")
 	$(ARTISAN_T) app:generate-recap $(t)
+
+# ─── IDE Helper ──────────────────────────────────────────────────────────────
+
+ide-helper: ## Generate IDE helper files (PHPDoc + models + meta)
+	$(ARTISAN_T) ide-helper:generate
+	$(ARTISAN_T) ide-helper:models --nowrite
+	$(ARTISAN_T) ide-helper:meta
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
 

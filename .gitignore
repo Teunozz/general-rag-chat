@@ -29,6 +29,9 @@ yarn-error.log
 # IDE
 .idea/
 .vscode/
+_ide_helper.php
+_ide_helper_models.php
+.phpstorm.meta.php
 *.suo
 *.ntvs*
 *.njsproj
