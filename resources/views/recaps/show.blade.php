@@ -15,7 +15,7 @@
             </p>
 
             <div class="prose dark:prose-invert max-w-none">
-                {!! nl2br(e($recap->summary)) !!}
+                {!! \Illuminate\Support\Str::markdown($recap->summary) !!}
             </div>
         </div>
     </div>

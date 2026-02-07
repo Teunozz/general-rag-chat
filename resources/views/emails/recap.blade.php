@@ -8,6 +8,8 @@
         .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; }
         .meta { color: #6b7280; font-size: 14px; margin-bottom: 16px; }
         .summary { font-size: 15px; }
+        .summary h2 { font-size: 18px; font-weight: 600; margin: 16px 0 8px 0; color: #1f2937; }
+        .summary p { margin: 0 0 12px 0; }
         .footer { margin-top: 20px; font-size: 12px; color: #9ca3af; text-align: center; }
     </style>
 </head>
@@ -21,7 +23,7 @@
             &middot; {{ $recap->document_count }} new documents
         </div>
         <div class="summary">
-            {!! nl2br(e($recap->summary)) !!}
+            {!! \Illuminate\Support\Str::markdown($recap->summary) !!}
         </div>
     </div>
     <div class="footer">

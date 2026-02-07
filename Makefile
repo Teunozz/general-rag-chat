@@ -158,7 +158,7 @@ refresh-feeds: ## Refresh all RSS feeds
 	$(ARTISAN_T) app:refresh-feeds
 
 recap: ## Generate recap emails (usage: make recap t="daily")
-	$(ARTISAN_T) app:generate-recap $(t)
+	$(ARTISAN_T) app:generate-recap $(t) --force
 
 # ─── IDE Helper ──────────────────────────────────────────────────────────────
 

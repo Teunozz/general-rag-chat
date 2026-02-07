@@ -6,29 +6,30 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('notification settings page is displayed', function (): void {
+test('profile page shows notification preferences', function (): void {
     $user = User::factory()->create();
 
-    $response = $this->actingAs($user)->get(route('notifications.edit'));
+    $response = $this->actingAs($user)->get(route('profile.edit'));
 
     $response->assertOk();
+    $response->assertSee('Notification Preferences');
 });
 
-test('auto creates preference record', function (): void {
+test('auto creates preference record on profile page', function (): void {
     $user = User::factory()->create();
 
-    $this->actingAs($user)->get(route('notifications.edit'));
+    $this->actingAs($user)->get(route('profile.edit'));
 
     $this->assertDatabaseHas('notification_preferences', [
         'user_id' => $user->id,
     ]);
 });
 
-test('update master email toggle', function (): void {
+test('update notification preferences', function (): void {
     $user = User::factory()->create();
     NotificationPreference::create(['user_id' => $user->id]);
 
-    $response = $this->actingAs($user)->put(route('notifications.update'), [
+    $response = $this->actingAs($user)->put(route('profile.notifications.update'), [
         'email_enabled' => true,
         'daily_recap' => true,
         'weekly_recap' => false,
@@ -56,7 +57,7 @@ test('disable all notifications', function (): void {
         'monthly_recap' => true,
     ]);
 
-    $response = $this->actingAs($user)->put(route('notifications.update'), [
+    $response = $this->actingAs($user)->put(route('profile.notifications.update'), [
         'email_enabled' => false,
         'daily_recap' => false,
         'weekly_recap' => false,
@@ -70,8 +71,8 @@ test('disable all notifications', function (): void {
     ]);
 });
 
-test('guest cannot access notifications', function (): void {
-    $response = $this->get(route('notifications.edit'));
+test('guest cannot update notification preferences', function (): void {
+    $response = $this->put(route('profile.notifications.update'));
 
     $response->assertRedirect(route('login'));
 });

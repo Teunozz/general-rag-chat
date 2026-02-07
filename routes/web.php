@@ -6,7 +6,6 @@ use App\Http\Controllers\Auth\ProfileController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\HealthController;
-use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\RecapController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,10 +41,7 @@ Route::middleware(['auth', 'force.password.change'])->group(function (): void {
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-
-    // Notification Preferences
-    Route::get('/notifications/settings', [NotificationPreferenceController::class, 'edit'])->name('notifications.edit');
-    Route::put('/notifications/settings', [NotificationPreferenceController::class, 'update'])->name('notifications.update');
+    Route::put('/profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications.update');
 });
 
 // Password change (auth but exempt from force password change)
