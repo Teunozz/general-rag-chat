@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Document;
 use Illuminate\Support\Facades\Http;
 use Laminas\Feed\Reader\Reader;
 
@@ -27,7 +28,7 @@ class FeedParserService
                 'url' => $entry->getLink() ?? '',
                 'content' => $plainContent,
                 'published_at' => $entry->getDateModified() ?? $entry->getDateCreated(),
-                'guid' => $entry->getId() ?? $entry->getLink() ?? uniqid(),
+                'guid' => $entry->getId() ?? $entry->getLink() ?? Document::hashContent($plainContent),
             ];
         }
 
