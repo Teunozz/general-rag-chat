@@ -1,59 +1,160 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Knowledge Base RAG
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A self-hosted personal knowledge base with AI-powered chat. Ingest content from websites, RSS feeds, and documents, then query your knowledge using conversational RAG (Retrieval-Augmented Generation) with source citations.
 
-## About Laravel
+Built with PHP 8.4, Laravel 12, PostgreSQL 17 + pgvector, and Redis. Runs entirely via Docker Compose.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### AI-Powered Chat
+- Ask questions about your ingested content and get answers grounded in your sources
+- Streaming responses via Server-Sent Events for real-time feedback
+- Numbered source citations with expandable previews linking back to original documents
+- Conversation history with auto-generated titles and summaries
+- Scope conversations to specific sources for targeted retrieval
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Multi-Source Content Ingestion
+- **Website crawling** — Configurable depth, same-domain restriction, content extraction via Readability
+- **RSS/Atom feeds** — Automatic refresh on configurable intervals with deduplication
+- **Document upload** — PDF, DOCX, DOC, TXT, Markdown, and HTML files
 
-## Learning Laravel
+### Advanced RAG Pipeline
+A 6-step retrieval process optimizes context quality before sending to the LLM:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+1. **Query enrichment** — LLM-powered query rewriting with temporal and source filter extraction
+2. **Vector similarity search** — Cosine distance over pgvector embeddings
+3. **Context window expansion** — Retrieves adjacent chunks for continuity
+4. **Full document retrieval** — Pulls entire documents when chunk relevance exceeds a threshold
+5. **Token budget enforcement** — Caps context size to prevent LLM overflow
+6. **Citation generation** — Maps retrieved chunks to numbered source references
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Automated Recaps
+- Daily, weekly, and monthly AI-generated summaries of newly ingested content
+- Email delivery with per-user notification preferences
 
-## Laravel Sponsors
+### Admin Panel
+- User management with role-based access (admin/user)
+- Source management with reindex and rechunk operations
+- Configurable LLM and embedding providers (OpenAI, Anthropic, Gemini)
+- Branding customization (name, description, primary color)
+- Chat behavior tuning (system prompt, temperature, context limits)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Security
+- PII encryption at rest using CipherSweet with blind indexes for lookups
+- SSRF protection on URL-based ingestion
+- Content Security Policy headers
+- CSRF protection, input validation, and output escaping
 
-### Premium Partners
+## Tech Stack
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+| Layer | Technology |
+|---|---|
+| Backend | PHP 8.4, Laravel 12 |
+| Database | PostgreSQL 17 + pgvector |
+| Queue / Cache | Redis |
+| AI | Laravel AI SDK (OpenAI, Anthropic, Gemini) |
+| Crawling | Roach PHP, Readability.php, Laminas Feed |
+| Encryption | CipherSweet (Spatie wrapper) |
+| Frontend | Tailwind CSS 4, Alpine.js (CSP build), Marked.js |
+| Testing | Pest, Larastan (level 5), Pint (PSR-12), Rector |
+| Infrastructure | Docker Compose (6 services) |
 
-## Contributing
+## Getting Started
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Prerequisites
 
-## Code of Conduct
+- Docker and Docker Compose
+- Node.js and npm (for building frontend assets)
+- An API key for at least one LLM provider (OpenAI, Anthropic, or Gemini)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Setup
 
-## Security Vulnerabilities
+```bash
+# Clone the repository
+git clone <repo-url>
+cd general-purpose-rag
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Copy environment file and configure
+cp .env.example .env
+# Edit .env — set APP_KEY, CIPHERSWEET_KEY, and at least one LLM API key
+
+# Start containers, run migrations, and build frontend
+make setup
+
+# Create your first admin user
+make create-admin
+```
+
+The application will be available at **http://localhost:8000**.
+
+### Key Environment Variables
+
+```bash
+# LLM Provider (at least one required)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=...
+GEMINI_API_KEY=...
+
+# PII Encryption (required, separate from APP_KEY)
+CIPHERSWEET_KEY=...
+
+# Email (optional, for recap notifications)
+MAIL_HOST=smtp.example.com
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
+```
+
+## Architecture
+
+```
+Docker Compose
+├── app           — Laravel application server (port 8000)
+├── postgres      — PostgreSQL 17 + pgvector
+├── postgres-test — In-memory test database
+├── redis         — Queue, cache, and session storage
+├── worker        — Background job processor
+└── scheduler     — Cron runner (feed refresh, recap generation)
+```
+
+### Application Structure
+
+```
+app/
+├── Console/Commands/    # CLI: create-admin, refresh-feeds, generate-recap
+├── Http/Controllers/
+│   ├── Admin/           # Settings, users, sources management
+│   ├── Auth/            # Login, password change, profile
+│   └── ChatController   # RAG chat with SSE streaming
+├── Jobs/                # Async: crawl, chunk & embed, email
+├── Models/              # User, Source, Document, Chunk, Conversation, Message, ...
+├── Services/            # RAG pipeline, chunking, embedding, feeds, model discovery
+├── Spiders/             # Roach PHP web crawler with middleware
+└── Policies/            # Authorization (user isolation)
+```
+
+## Development
+
+### Commands
+
+```bash
+make test                    # Run the full Pest test suite
+make test-filter f="Chat"    # Run tests matching a filter
+make pint                    # Fix code style (PSR-12)
+make phpstan                 # Static analysis (Larastan level 5)
+make lint                    # Run pint-check + phpstan
+make rector                  # Rector dry-run (code quality suggestions)
+make fresh                   # Full rebuild: teardown, migrate:fresh --seed, build
+make shell                   # Bash shell in app container
+make tinker                  # Laravel Tinker REPL
+```
+
+### Workflow
+
+1. Write code
+2. `make pint` — fix code style
+3. `make phpstan` — static analysis
+4. `make test` — run tests
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+All rights reserved.
