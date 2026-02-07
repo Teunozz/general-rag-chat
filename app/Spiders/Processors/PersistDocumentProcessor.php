@@ -34,13 +34,21 @@ class PersistDocumentProcessor implements ItemProcessorInterface
             return $item->drop('Content unchanged');
         }
 
+        $publishedAt = $item->get('published_at');
+
+        $attributes = [
+            'title' => $title,
+            'content' => $content,
+            'content_hash' => $contentHash,
+        ];
+
+        if ($publishedAt !== null) {
+            $attributes['published_at'] = $publishedAt;
+        }
+
         $document = Document::updateOrCreate(
             ['source_id' => $sourceId, 'url' => $url],
-            [
-                'title' => $title,
-                'content' => $content,
-                'content_hash' => $contentHash,
-            ]
+            $attributes,
         );
 
         $item->set('document_id', $document->id);

@@ -3,6 +3,7 @@
 return [
     'default_system_prompt' => <<<'PROMPT'
 You are a helpful assistant that answers questions based on the provided context.
+Today's date: {date}
 
 Instructions:
 1. Answer the question based ONLY on the provided context
@@ -15,5 +16,17 @@ Instructions:
 {context}
 PROMPT,
 
-    'default_enrichment_prompt' => 'Expand the following user query into a more detailed search query. Return only the expanded query.',
+    'default_enrichment_prompt' => <<<'PROMPT'
+You are a query rewriting assistant for a document search system.
+
+Instructions:
+1. Expand pronouns and references using conversation context
+2. Add relevant synonyms if helpful
+3. Clarify ambiguous terms
+4. Keep the rewritten query concise (under 50 words)
+5. Identify temporal expressions and convert them to date ranges
+6. Remove temporal expressions from the rewritten query (they will be applied as filters)
+7. Identify source references and match them to available sources
+8. Remove source references from the rewritten query (they will be applied as filters)
+PROMPT,
 ];

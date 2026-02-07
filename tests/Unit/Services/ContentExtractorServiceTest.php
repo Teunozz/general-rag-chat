@@ -76,3 +76,102 @@ test('extracts title', function (): void {
         expect($result['title'])->not->toBeEmpty();
     }
 });
+
+test('result includes published_at key', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>Test</title></head>
+    <body>
+        <article>
+            <p>This is a test article with enough content for the Readability parser to properly extract. We need sufficient text for reliable content identification.</p>
+            <p>Additional paragraph to ensure the readability algorithm has enough material to work with during extraction.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result)->toHaveKey('published_at');
+    }
+});
+
+test('extracts published_at from JSON-LD datePublished', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>JSON-LD Article</title>
+    <script type="application/ld+json">{"@type":"Article","datePublished":"2025-03-15T10:00:00Z","headline":"Test"}</script>
+    </head>
+    <body>
+        <article>
+            <p>This is a test article with enough content for the Readability parser. The JSON-LD markup should provide the published date for extraction by our content extractor service.</p>
+            <p>Additional paragraph for readability content mass. This ensures reliable extraction works properly.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2025-03-15');
+    }
+});
+
+test('extracts published_at from meta article:published_time', function (): void {
+    $html = <<<'HTML'
+    <html><head>
+    <title>Meta Article</title>
+    <meta property="article:published_time" content="2025-06-20T14:30:00Z">
+    </head>
+    <body>
+        <article>
+            <p>This article uses OpenGraph meta tags for its published date. The content extractor should find and parse the article:published_time meta property correctly.</p>
+            <p>Second paragraph to provide enough content for the readability parser to identify the main content area.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2025-06-20');
+    }
+});
+
+test('extracts published_at from time element datetime', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>Time Element</title></head>
+    <body>
+        <article>
+            <time datetime="2025-09-01T08:00:00Z">September 1, 2025</time>
+            <p>This article uses a time element with a datetime attribute. The content extractor should find and parse this as the published date for the document.</p>
+            <p>Additional paragraph for the readability parser to have enough content to work with properly.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2025-09-01');
+    }
+});
+
+test('returns null published_at when no date found', function (): void {
+    $html = <<<'HTML_WRAP'
+    <html><head><title>No Date</title></head>
+    <body>
+        <article>
+            <p>This article has no date markup at all. The content extractor should return null for published_at when no date information can be found in the HTML.</p>
+            <p>Second paragraph of content for the readability parser to identify this as the main content area of the page.</p>
+        </article>
+    </body></html>
+    HTML_WRAP;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->toBeNull();
+    }
+});

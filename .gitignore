@@ -39,3 +39,4 @@ _ide_helper_models.php
 *.sw?
 
 .DS_Store
+.playwright-mcp

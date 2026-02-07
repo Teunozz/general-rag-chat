@@ -39,6 +39,7 @@ class WebsiteSpider extends BasicSpider
                 'title' => $extracted['title'],
                 'url' => (string) $response->getUri(),
                 'content' => $extracted['content'],
+                'published_at' => $extracted['published_at'],
             ]);
         }
 

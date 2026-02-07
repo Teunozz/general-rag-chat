@@ -97,10 +97,12 @@ class ChatController extends Controller
         $chatSettings = $settings->group('chat');
         $systemPromptTemplate = $chatSettings['system_prompt'] ?? config('chat.default_system_prompt');
 
-        if (Str::contains($systemPromptTemplate, '{context}')) {
-            $systemPrompt = Str::replace('{context}', $ragContext->formattedChunks, $systemPromptTemplate);
+        $systemPrompt = Str::replace('{date}', now()->format('Y-m-d'), $systemPromptTemplate);
+
+        if (Str::contains($systemPrompt, '{context}')) {
+            $systemPrompt = Str::replace('{context}', $ragContext->formattedChunks, $systemPrompt);
         } else {
-            $systemPrompt = $systemPromptTemplate . "\n\nContext:\n" . $ragContext->formattedChunks;
+            $systemPrompt = $systemPrompt . "\n\nContext:\n" . $ragContext->formattedChunks;
         }
 
         $chatAgent = agent(

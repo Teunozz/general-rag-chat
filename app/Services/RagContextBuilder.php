@@ -12,37 +12,50 @@ class RagContextBuilder
     public function __construct(
         private readonly EmbeddingService $embedder,
         private readonly SystemSettingsService $settings,
+        private readonly QueryEnrichmentService $enrichmentService,
     ) {
     }
 
     public function build(string $query, Conversation $conversation): RagContext
     {
         $chatSettings = $this->settings->group('chat');
-        $enrichedQuery = null;
+        $enrichmentResult = null;
 
         // Step 1: Query enrichment (if enabled)
         if ($chatSettings['query_enrichment_enabled'] ?? false) {
-            $enrichedQuery = $this->enrichQuery($query, $chatSettings['enrichment_prompt'] ?? '');
-            $searchQuery = $enrichedQuery ?? $query;
+            $recentHistory = $this->enrichmentService->getRecentHistory($conversation);
+            $enrichmentResult = $this->enrichmentService->enrich($query, $recentHistory);
+            $searchQuery = $enrichmentResult instanceof \App\Services\EnrichmentResult ? $enrichmentResult->enrichedQuery : $query;
         } else {
             $searchQuery = $query;
         }
 
-        // Step 2: Vector search
-        $sourceIds = $conversation->sources()->pluck('sources.id')->toArray();
-        $limit = (int) ($chatSettings['context_chunk_count'] ?? 100);
-        $chunks = $this->vectorSearch($searchQuery, $sourceIds ?: null, $limit);
+        // Step 2: Determine source filtering
+        // Conversation-scoped sources (UI) take precedence over enrichment-extracted sources
+        $conversationSourceIds = $conversation->sources()->pluck('sources.id')->toArray();
+        if ($conversationSourceIds !== []) {
+            $sourceIds = $conversationSourceIds;
+        } elseif ($enrichmentResult?->sourceIds) {
+            $sourceIds = $enrichmentResult->sourceIds;
+        } else {
+            $sourceIds = null;
+        }
 
-        // Step 3: Context window expansion
+        // Step 3: Vector search with optional date filtering
+        $limit = (int) ($chatSettings['context_chunk_count'] ?? 100);
+        $dateFilter = $enrichmentResult?->dateFilter;
+        $chunks = $this->vectorSearch($searchQuery, $sourceIds, $limit, $dateFilter);
+
+        // Step 4: Context window expansion
         $windowSize = (int) ($chatSettings['context_window_size'] ?? 2);
         $expandedChunks = $this->expandContext($chunks, $windowSize);
 
-        // Step 4: Full document retrieval for high-scoring chunks
+        // Step 5: Full document retrieval for high-scoring chunks
         $scoreThreshold = (float) ($chatSettings['full_doc_score_threshold'] ?? 0.85);
         $maxFullDocChars = (int) ($chatSettings['max_full_doc_characters'] ?? 10000);
         $expandedChunks = $this->maybeAddFullDocuments($expandedChunks, $scoreThreshold, $maxFullDocChars);
 
-        // Step 5: Token budget enforcement
+        // Step 6: Token budget enforcement
         $maxTokens = (int) ($chatSettings['max_context_tokens'] ?? 16000);
         $budgetedChunks = $this->enforceTokenBudget($expandedChunks, $maxTokens);
 
@@ -56,6 +69,8 @@ class RagContextBuilder
             $document = $chunk->document;
             $source = $document->source;
 
+            $publishedAt = $document->published_at?->format('Y-m-d');
+
             $citations[] = [
                 'number' => $number,
                 'chunk_id' => $chunk->id,
@@ -63,10 +78,15 @@ class RagContextBuilder
                 'document_title' => $document->title,
                 'document_url' => $document->url,
                 'source_name' => $source->name,
+                'published_at' => $publishedAt,
                 'snippet' => mb_substr((string) $chunk->content, 0, 200),
             ];
 
-            $contextParts[] = "[{$number}] {$chunk->content}";
+            $header = "[{$number}]";
+            if ($publishedAt !== null) {
+                $header .= " (Published: {$publishedAt})";
+            }
+            $contextParts[] = "{$header} {$chunk->content}";
             $totalTokens += $chunk->token_count;
         }
 
@@ -75,7 +95,8 @@ class RagContextBuilder
             citations: $citations,
             totalTokens: $totalTokens,
             chunkCount: count($budgetedChunks),
-            enrichedQuery: $enrichedQuery,
+            enrichedQuery: $enrichmentResult?->enrichedQuery,
+            enrichmentResult: $enrichmentResult,
         );
     }
 
@@ -84,7 +105,7 @@ class RagContextBuilder
         return $this->vectorSearch($query, $sourceIds, $limit);
     }
 
-    private function vectorSearch(string $query, ?array $sourceIds, int $limit): Collection
+    private function vectorSearch(string $query, ?array $sourceIds, int $limit, ?DateFilter $dateFilter = null): Collection
     {
         $queryEmbedding = $this->embedder->embed($query);
 
@@ -96,6 +117,17 @@ class RagContextBuilder
         if ($sourceIds) {
             $builder->whereHas('document', function ($q) use ($sourceIds): void {
                 $q->whereIn('source_id', $sourceIds);
+            });
+        }
+
+        if ($dateFilter?->isActive()) {
+            $builder->whereHas('document', function ($q) use ($dateFilter): void {
+                if ($dateFilter->startDate instanceof \Carbon\CarbonImmutable) {
+                    $q->where('published_at', '>=', $dateFilter->startDate);
+                }
+                if ($dateFilter->endDate instanceof \Carbon\CarbonImmutable) {
+                    $q->where('published_at', '<=', $dateFilter->endDate);
+                }
             });
         }
 
@@ -170,24 +202,5 @@ class RagContextBuilder
         }
 
         return $budgeted;
-    }
-
-    private function enrichQuery(string $query, string $enrichmentPrompt): ?string
-    {
-        try {
-            $agent = \Laravel\Ai\agent(
-                instructions: $enrichmentPrompt ?: config('chat.default_enrichment_prompt'),
-            );
-
-            $response = $agent->prompt(
-                $query,
-                provider: $this->settings->get('llm', 'provider', 'openai'),
-                model: $this->settings->get('llm', 'model', 'gpt-4o'),
-            );
-
-            return $response->text;
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

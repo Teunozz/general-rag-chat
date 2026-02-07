@@ -150,8 +150,8 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Enrichment Prompt</label>
-                            <textarea name="enrichment_prompt" rows="3" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for expanding user queries before vector search.</p>
+                            <textarea name="enrichment_prompt" rows="6" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for structured query enrichment. The JSON response schema, today's date, and available sources list are appended automatically at runtime.</p>
                         </div>
                     </div>
                     <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
