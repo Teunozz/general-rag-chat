@@ -43,40 +43,62 @@
                 </form>
 
                 {{-- LLM --}}
-                <form x-show="tab === 'llm'" x-cloak method="POST" action="{{ route('admin.settings.llm') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <form x-show="tab === 'llm'" x-cloak method="POST" action="{{ route('admin.settings.llm') }}"
+                    x-data="modelPicker"
+                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
+                    data-current-provider="{{ $llm['provider'] ?? 'openai' }}"
+                    data-current-model="{{ $llm['model'] ?? '' }}"
+                    data-type="text"
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                     @csrf @method('PUT')
                     <h2 class="text-lg font-semibold mb-4">LLM Provider</h2>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">Provider</label>
-                            <select name="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <option value="openai" {{ ($llm['provider'] ?? '') === 'openai' ? 'selected' : '' }}>OpenAI</option>
-                                <option value="anthropic" {{ ($llm['provider'] ?? '') === 'anthropic' ? 'selected' : '' }}>Anthropic</option>
-                                <option value="gemini" {{ ($llm['provider'] ?? '') === 'gemini' ? 'selected' : '' }}>Gemini</option>
+                            <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                <option value="openai">OpenAI</option>
+                                <option value="anthropic">Anthropic</option>
+                                <option value="gemini">Gemini</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Model</label>
-                            <input type="text" name="model" value="{{ $llm['model'] ?? '' }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                <template x-for="m in models" :key="m.id">
+                                    <option :value="m.id" x-text="m.name"></option>
+                                </template>
+                            </select>
+                            <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
                         </div>
                     </div>
                     <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- Embedding --}}
-                <form x-show="tab === 'embedding'" x-cloak method="POST" action="{{ route('admin.settings.embedding') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <form x-show="tab === 'embedding'" x-cloak method="POST" action="{{ route('admin.settings.embedding') }}"
+                    x-data="modelPicker"
+                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
+                    data-current-provider="{{ $embedding['provider'] ?? 'openai' }}"
+                    data-current-model="{{ $embedding['model'] ?? '' }}"
+                    data-type="embedding"
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                     @csrf @method('PUT')
                     <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">Provider</label>
-                            <select name="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <option value="openai" {{ ($embedding['provider'] ?? '') === 'openai' ? 'selected' : '' }}>OpenAI</option>
+                            <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                <option value="openai">OpenAI</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Model</label>
-                            <input type="text" name="model" value="{{ $embedding['model'] ?? '' }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                <template x-for="m in models" :key="m.id">
+                                    <option :value="m.id" x-text="m.name"></option>
+                                </template>
+                            </select>
+                            <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Dimensions</label>

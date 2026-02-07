@@ -142,6 +142,61 @@ Alpine.data('sourcesList', () => ({
     },
 }));
 
+Alpine.data('modelPicker', () => ({
+    provider: '',
+    model: '',
+    models: [],
+    loading: false,
+    refreshUrl: '',
+    type: 'text',
+
+    init() {
+        this.refreshUrl = this.$el.dataset.refreshUrl;
+        this.type = this.$el.dataset.type || 'text';
+        this.provider = this.$el.dataset.currentProvider || 'openai';
+        this.model = this.$el.dataset.currentModel || '';
+
+        this.fetchModels();
+
+        this.$watch('provider', () => {
+            this.model = '';
+            this.fetchModels();
+        });
+    },
+
+    async fetchModels() {
+        this.loading = true;
+        try {
+            const response = await fetch(this.refreshUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ provider: this.provider, type: this.type }),
+            });
+            const data = await response.json();
+            this.models = data.models || [];
+
+            // If current model not in fetched list, add it so it stays selectable
+            if (this.model && !this.models.find(m => m.id === this.model)) {
+                this.models.unshift({ id: this.model, name: this.model });
+            }
+
+            // If no model selected, pick the first available
+            if (!this.model && this.models.length > 0) {
+                this.model = this.models[0].id;
+            }
+        } catch (err) {
+            console.error('Failed to fetch models:', err);
+            if (this.model) {
+                this.models = [{ id: this.model, name: this.model }];
+            }
+        }
+        this.loading = false;
+    },
+}));
+
 Alpine.data('confirmDelete', () => ({
     confirmMessage: '',
 
