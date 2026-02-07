@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Fruitcake\LaravelDebugbar\Facades\Debugbar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +17,10 @@ class ContentSecurityPolicy
         $response = $next($request);
 
         $nonce = Vite::cspNonce();
+
+        if (app()->isLocal() && class_exists(Debugbar::class)) {
+            Debugbar::getJavascriptRenderer()->setCspNonce($nonce);
+        }
 
         $scriptSrc = "'self' 'nonce-{$nonce}'";
         $styleSrc = "'self' 'nonce-{$nonce}'";
