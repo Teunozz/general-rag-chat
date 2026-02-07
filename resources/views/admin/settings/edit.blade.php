@@ -5,7 +5,7 @@
         <div x-data="{ tab: 'branding' }" class="flex gap-6">
             {{-- Tabs --}}
             <nav class="w-48 space-y-1">
-                @foreach(['branding', 'llm', 'embedding', 'chat', 'recap', 'email'] as $section)
+                @foreach(['branding', 'models', 'chat', 'recap', 'email'] as $section)
                 <button @click="tab = '{{ $section }}'" :class="tab === '{{ $section }}' ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
                     class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors">
                     {{ $section }}
@@ -36,71 +36,74 @@
                     <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
-                {{-- LLM --}}
-                <form x-show="tab === 'llm'" x-cloak method="POST" action="{{ route('admin.settings.llm') }}"
-                    x-data="modelPicker"
-                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
-                    data-current-provider="{{ $llm['provider'] ?? 'openai' }}"
-                    data-current-model="{{ $llm['model'] ?? '' }}"
-                    data-type="text"
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    @csrf @method('PUT')
-                    <h2 class="text-lg font-semibold mb-4">LLM Provider</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Provider</label>
-                            <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <option value="openai">OpenAI</option>
-                                <option value="anthropic">Anthropic</option>
-                                <option value="gemini">Gemini</option>
-                            </select>
+                {{-- Models (LLM + Embedding) --}}
+                <div x-show="tab === 'models'" x-cloak>
+                    {{-- LLM --}}
+                    <form method="POST" action="{{ route('admin.settings.llm') }}"
+                        x-data="modelPicker"
+                        data-refresh-url="{{ route('admin.settings.models.refresh') }}"
+                        data-current-provider="{{ $llm['provider'] ?? 'openai' }}"
+                        data-current-model="{{ $llm['model'] ?? '' }}"
+                        data-type="text"
+                        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        @csrf @method('PUT')
+                        <h2 class="text-lg font-semibold mb-4">LLM Provider</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Provider</label>
+                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="gemini">Gemini</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Model</label>
+                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <template x-for="m in models" :key="m.id">
+                                        <option :value="m.id" x-text="m.name"></option>
+                                    </template>
+                                </select>
+                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Model</label>
-                            <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <template x-for="m in models" :key="m.id">
-                                    <option :value="m.id" x-text="m.name"></option>
-                                </template>
-                            </select>
-                            <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
-                        </div>
-                    </div>
-                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
-                </form>
+                        <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    </form>
 
-                {{-- Embedding --}}
-                <form x-show="tab === 'embedding'" x-cloak method="POST" action="{{ route('admin.settings.embedding') }}"
-                    x-data="modelPicker"
-                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
-                    data-current-provider="{{ $embedding['provider'] ?? 'openai' }}"
-                    data-current-model="{{ $embedding['model'] ?? '' }}"
-                    data-type="embedding"
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    @csrf @method('PUT')
-                    <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Provider</label>
-                            <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <option value="openai">OpenAI</option>
-                            </select>
+                    {{-- Embedding --}}
+                    <form method="POST" action="{{ route('admin.settings.embedding') }}"
+                        x-data="modelPicker"
+                        data-refresh-url="{{ route('admin.settings.models.refresh') }}"
+                        data-current-provider="{{ $embedding['provider'] ?? 'openai' }}"
+                        data-current-model="{{ $embedding['model'] ?? '' }}"
+                        data-type="embedding"
+                        class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        @csrf @method('PUT')
+                        <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Provider</label>
+                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <option value="openai">OpenAI</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Model</label>
+                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <template x-for="m in models" :key="m.id">
+                                        <option :value="m.id" x-text="m.name"></option>
+                                    </template>
+                                </select>
+                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Dimensions</label>
+                                <input type="number" name="dimensions" value="{{ $embedding['dimensions'] ?? 1536 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Model</label>
-                            <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                <template x-for="m in models" :key="m.id">
-                                    <option :value="m.id" x-text="m.name"></option>
-                                </template>
-                            </select>
-                            <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Dimensions</label>
-                            <input type="number" name="dimensions" value="{{ $embedding['dimensions'] ?? 1536 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                        </div>
-                    </div>
-                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
-                </form>
+                        <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    </form>
+                </div>
 
                 {{-- Chat --}}
                 <form x-show="tab === 'chat'" x-cloak method="POST" action="{{ route('admin.settings.chat') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
