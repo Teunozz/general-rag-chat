@@ -176,7 +176,7 @@ class RagContextBuilder
     {
         try {
             $agent = \Laravel\Ai\agent(
-                instructions: $enrichmentPrompt ?: 'Expand the following user query into a more detailed search query. Return only the expanded query.',
+                instructions: $enrichmentPrompt ?: config('chat.default_enrichment_prompt'),
             );
 
             $response = $agent->prompt(

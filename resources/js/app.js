@@ -34,6 +34,12 @@ Alpine.data('chatApp', () => ({
     init() {
         this.conversationId = this.$el.dataset.conversationId || null;
         this.storeRoute = this.$el.dataset.storeRoute;
+
+        this.$watch('renderedContent', (html) => {
+            if (this.$refs.streamContent) {
+                this.$refs.streamContent.innerHTML = html || '<span class="text-gray-400">Thinking...</span>';
+            }
+        });
     },
 
     async sendMessage() {

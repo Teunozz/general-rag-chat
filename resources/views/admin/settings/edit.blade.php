@@ -115,7 +115,8 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">System Prompt</label>
-                            <textarea name="system_prompt" rows="4" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">{{ $chat['system_prompt'] ?? '' }}</textarea>
+                            <textarea name="system_prompt" rows="10" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['system_prompt'] ?? $chatDefaults['system_prompt'] }}</textarea>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{context}</code> to control where retrieved context is inserted. If omitted, context is appended automatically.</p>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -149,7 +150,8 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Enrichment Prompt</label>
-                            <textarea name="enrichment_prompt" rows="2" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">{{ $chat['enrichment_prompt'] ?? '' }}</textarea>
+                            <textarea name="enrichment_prompt" rows="3" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for expanding user queries before vector search.</p>
                         </div>
                     </div>
                     <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>

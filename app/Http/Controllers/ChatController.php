@@ -8,6 +8,7 @@ use App\Services\RagContextBuilder;
 use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\UserMessage;
@@ -94,8 +95,13 @@ class ChatController extends Controller
         array_pop($history);
 
         $chatSettings = $settings->group('chat');
-        $systemPrompt = ($chatSettings['system_prompt'] ?? 'You are a helpful assistant.') .
-            "\n\n--- CONTEXT ---\n" . $ragContext->formattedChunks . "\n--- END CONTEXT ---";
+        $systemPromptTemplate = $chatSettings['system_prompt'] ?? config('chat.default_system_prompt');
+
+        if (Str::contains($systemPromptTemplate, '{context}')) {
+            $systemPrompt = Str::replace('{context}', $ragContext->formattedChunks, $systemPromptTemplate);
+        } else {
+            $systemPrompt = $systemPromptTemplate . "\n\nContext:\n" . $ragContext->formattedChunks;
+        }
 
         $chatAgent = agent(
             instructions: $systemPrompt,

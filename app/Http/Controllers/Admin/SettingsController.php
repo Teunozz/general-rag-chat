@@ -28,6 +28,10 @@ class SettingsController extends Controller
             'llm' => $this->settings->group('llm'),
             'embedding' => $this->settings->group('embedding'),
             'chat' => $this->settings->group('chat'),
+            'chatDefaults' => [
+                'system_prompt' => config('chat.default_system_prompt'),
+                'enrichment_prompt' => config('chat.default_enrichment_prompt'),
+            ],
             'recap' => $this->settings->group('recap'),
             'email' => $this->settings->group('email'),
         ]);
