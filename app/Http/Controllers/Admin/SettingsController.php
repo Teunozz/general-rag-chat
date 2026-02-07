@@ -43,7 +43,6 @@ class SettingsController extends Controller
             'app_name' => ['required', 'string', 'max:255'],
             'app_description' => ['nullable', 'string', 'max:500'],
             'primary_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'secondary_color' => ['required', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
         foreach ($validated as $key => $value) {

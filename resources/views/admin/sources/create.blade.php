@@ -5,11 +5,11 @@
         <div x-data="{ tab: 'website' }" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             {{-- Tab navigation --}}
             <div class="flex space-x-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-                <button @click="tab = 'website'" :class="tab === 'website' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500'"
+                <button @click="tab = 'website'" :class="tab === 'website' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
                     class="pb-2 border-b-2 text-sm font-medium transition-colors">Website</button>
-                <button @click="tab = 'rss'" :class="tab === 'rss' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500'"
+                <button @click="tab = 'rss'" :class="tab === 'rss' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
                     class="pb-2 border-b-2 text-sm font-medium transition-colors">RSS Feed</button>
-                <button @click="tab = 'document'" :class="tab === 'document' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500'"
+                <button @click="tab = 'document'" :class="tab === 'document' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
                     class="pb-2 border-b-2 text-sm font-medium transition-colors">Document Upload</button>
             </div>
 
@@ -46,7 +46,7 @@
                     <div class="flex items-center">
                         <input type="checkbox" name="require_article_markup" id="require_article_markup" value="1" checked
                             x-model="requireMarkup"
-                            class="rounded border-gray-300 dark:border-gray-600 text-indigo-600">
+                            class="rounded border-gray-300 dark:border-gray-600 text-primary">
                         <label for="require_article_markup" class="ml-2 text-sm">Require JSON-LD article markup</label>
                     </div>
                     <div x-show="requireMarkup" x-cloak class="mt-2">
@@ -64,7 +64,7 @@
                         class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"></textarea>
                 </div>
 
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">
                     Add Website Source
                 </button>
             </form>
@@ -98,7 +98,7 @@
                         class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"></textarea>
                 </div>
 
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">
                     Add RSS Source
                 </button>
             </form>
@@ -120,7 +120,7 @@
                     <p class="mt-1 text-xs text-gray-500">Accepted: TXT, MD, HTML, PDF, DOC, DOCX (max 10MB)</p>
                 </div>
 
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">
                     Upload Document
                 </button>
             </form>

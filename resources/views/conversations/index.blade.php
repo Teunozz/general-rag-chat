@@ -20,7 +20,7 @@
             </div>
             @empty
             <div class="text-center py-12 text-gray-500">
-                <p>No conversations yet. <a href="{{ route('chat.index') }}" class="text-indigo-600 hover:underline">Start one</a>.</p>
+                <p>No conversations yet. <a href="{{ route('chat.index') }}" class="text-primary hover:underline">Start one</a>.</p>
             </div>
             @endforelse
         </div>

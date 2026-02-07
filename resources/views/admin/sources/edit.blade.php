@@ -33,7 +33,7 @@
                 <div class="flex items-center">
                     <input type="checkbox" name="require_article_markup" value="1" {{ $source->require_article_markup ? 'checked' : '' }}
                         x-model="requireMarkup"
-                        class="rounded border-gray-300 text-indigo-600">
+                        class="rounded border-gray-300 text-primary">
                     <label class="ml-2 text-sm">Require JSON-LD article markup</label>
                 </div>
                 <div x-show="requireMarkup" x-cloak class="mt-2">
@@ -62,7 +62,7 @@
                 @endif
             </div>
 
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+            <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">
                 Update Source
             </button>
         </form>

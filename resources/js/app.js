@@ -71,7 +71,7 @@ Alpine.data('chatApp', () => ({
         const container = document.getElementById('messages-container');
         const userDiv = document.createElement('div');
         userDiv.className = 'max-w-3xl mx-auto flex justify-end';
-        userDiv.innerHTML = `<div class="bg-indigo-600 text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm"><div class="prose prose-sm max-w-none text-white">${this.escapeHtml(message)}</div></div>`;
+        userDiv.innerHTML = `<div class="bg-primary text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm"><div class="prose prose-sm max-w-none text-white">${this.escapeHtml(message)}</div></div>`;
         container.insertBefore(userDiv, container.lastElementChild);
 
         // Stream response

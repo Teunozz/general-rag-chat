@@ -1,5 +1,6 @@
 @php
     $appName = \App\Models\SystemSetting::getValue('branding', 'app_name', config('app.name', 'Knowledge Base'));
+    $primaryColor = \App\Models\SystemSetting::getValue('branding', 'primary_color', '#4F46E5');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full"
@@ -12,6 +13,12 @@
 
     <title>{{ $title ?? $appName }}</title>
 
+    <style nonce="{{ Vite::cspNonce() }}">
+        :root {
+            --brand-primary: {{ $primaryColor }};
+            --brand-primary-hover: color-mix(in srgb, {{ $primaryColor }} 80%, black);
+        }
+    </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">

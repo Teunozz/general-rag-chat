@@ -12,7 +12,7 @@
                 </span>
             </div>
             <a href="{{ route('admin.sources.create') }}"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                class="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 Add Source
             </a>
         </div>
@@ -59,7 +59,7 @@
                                 {{ $source->last_indexed_at?->diffForHumans() ?? 'Never' }}
                             </td>
                             <td class="px-6 py-4 text-sm space-x-2">
-                                <a href="{{ route('admin.sources.edit', $source) }}" class="text-indigo-600 hover:text-indigo-800">Edit</a>
+                                <a href="{{ route('admin.sources.edit', $source) }}" class="text-primary hover:text-primary-hover">Edit</a>
                                 @if($source->type !== 'document')
                                 <form method="POST" action="{{ route('admin.sources.reindex', $source) }}" class="inline">
                                     @csrf

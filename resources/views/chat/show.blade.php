@@ -5,7 +5,7 @@
             @if($conversation)
                 @foreach($messages as $message)
                 <div class="max-w-3xl mx-auto {{ $message->role === 'user' ? 'flex justify-end' : '' }}">
-                    <div class="{{ $message->role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-800' }} rounded-lg px-4 py-3 max-w-2xl shadow-sm">
+                    <div class="{{ $message->role === 'user' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800' }} rounded-lg px-4 py-3 max-w-2xl shadow-sm">
                         @if($message->role === 'user')
                         <div class="prose prose-sm max-w-none text-white">{{ $message->content }}</div>
                         @else
@@ -27,7 +27,7 @@
                                     <p class="mt-1 text-gray-500 dark:text-gray-400 line-clamp-3">{{ $citation['chunk_preview'] }}</p>
                                     @endif
                                     @if($citation['document_url'])
-                                    <a href="{{ $citation['document_url'] }}" target="_blank" rel="noopener" class="inline-block mt-1 text-indigo-500 hover:underline">View source</a>
+                                    <a href="{{ $citation['document_url'] }}" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline">View source</a>
                                     @endif
                                 </div>
                                 @endforeach
@@ -64,7 +64,7 @@
                                             <p class="mt-1 text-gray-500 dark:text-gray-400 line-clamp-3" x-text="citation.chunk_preview"></p>
                                         </template>
                                         <template x-if="citation.document_url">
-                                            <a :href="citation.document_url" target="_blank" rel="noopener" class="inline-block mt-1 text-indigo-500 hover:underline">View source</a>
+                                            <a :href="citation.document_url" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline">View source</a>
                                         </template>
                                     </div>
                                 </template>
@@ -82,9 +82,9 @@
                 <input type="hidden" x-ref="newConversation" value="1">
                 @endif
                 <input type="text" x-model="messageInput" :disabled="isStreaming" placeholder="Ask a question..."
-                    class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                 <button type="submit" :disabled="isStreaming || !messageInput.trim()"
-                    class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                    class="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                     <svg x-show="isStreaming" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                     <span x-text="isStreaming ? 'Streaming...' : 'Send'"></span>
                 </button>

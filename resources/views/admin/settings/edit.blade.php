@@ -6,7 +6,7 @@
             {{-- Tabs --}}
             <nav class="w-48 space-y-1">
                 @foreach(['branding', 'llm', 'embedding', 'chat', 'recap', 'email'] as $section)
-                <button @click="tab = '{{ $section }}'" :class="tab === '{{ $section }}' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
+                <button @click="tab = '{{ $section }}'" :class="tab === '{{ $section }}' ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
                     class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors">
                     {{ $section }}
                 </button>
@@ -28,18 +28,12 @@
                             <label class="block text-sm font-medium mb-1">Description</label>
                             <textarea name="app_description" rows="2" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">{{ $branding['app_description'] ?? '' }}</textarea>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Primary Color</label>
-                                <input type="color" name="primary_color" value="{{ $branding['primary_color'] ?? '#4F46E5' }}" class="h-10 w-full rounded cursor-pointer">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Secondary Color</label>
-                                <input type="color" name="secondary_color" value="{{ $branding['secondary_color'] ?? '#7C3AED' }}" class="h-10 w-full rounded cursor-pointer">
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Primary Color</label>
+                            <input type="color" name="primary_color" value="{{ $branding['primary_color'] ?? '#4F46E5' }}" class="h-10 w-20 rounded cursor-pointer">
                         </div>
                     </div>
-                    <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- LLM --}}
@@ -71,7 +65,7 @@
                             <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
                         </div>
                     </div>
-                    <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- Embedding --}}
@@ -105,7 +99,7 @@
                             <input type="number" name="dimensions" value="{{ $embedding['dimensions'] ?? 1536 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
                         </div>
                     </div>
-                    <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- Chat --}}
@@ -145,7 +139,7 @@
                             </div>
                         </div>
                         <div class="flex items-center">
-                            <input type="checkbox" name="query_enrichment_enabled" value="1" {{ ($chat['query_enrichment_enabled'] ?? false) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600">
+                            <input type="checkbox" name="query_enrichment_enabled" value="1" {{ ($chat['query_enrichment_enabled'] ?? false) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
                             <label class="ml-2 text-sm">Enable Query Enrichment</label>
                         </div>
                         <div>
@@ -154,7 +148,7 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for structured query enrichment. The JSON response schema, today's date, and available sources list are appended automatically at runtime.</p>
                         </div>
                     </div>
-                    <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- Recap --}}
@@ -165,7 +159,7 @@
                         @foreach(['daily', 'weekly', 'monthly'] as $type)
                         <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
                             <div class="flex items-center mb-2">
-                                <input type="checkbox" name="{{ $type }}_enabled" value="1" {{ ($recap["{$type}_enabled"] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600">
+                                <input type="checkbox" name="{{ $type }}_enabled" value="1" {{ ($recap["{$type}_enabled"] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
                                 <label class="ml-2 text-sm font-medium capitalize">{{ $type }} Recap</label>
                             </div>
                             <div class="grid grid-cols-2 gap-4 ml-6">
@@ -197,7 +191,7 @@
                         </div>
                         @endforeach
                     </div>
-                    <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
                 {{-- Email --}}
@@ -206,10 +200,10 @@
                         @csrf @method('PUT')
                         <h2 class="text-lg font-semibold mb-4">Email Settings</h2>
                         <div class="flex items-center">
-                            <input type="checkbox" name="system_enabled" value="1" {{ ($email['system_enabled'] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-indigo-600">
+                            <input type="checkbox" name="system_enabled" value="1" {{ ($email['system_enabled'] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
                             <label class="ml-2 text-sm">Enable email notifications system-wide</label>
                         </div>
-                        <button type="submit" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
+                        <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                     </form>
                     <form method="POST" action="{{ route('admin.settings.email.test') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf

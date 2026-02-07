@@ -1,7 +1,7 @@
 <x-layouts.app :title="ucfirst($recap->type) . ' Recap'">
     <div class="max-w-3xl mx-auto px-4 py-8">
         <div class="mb-6">
-            <a href="{{ route('recaps.index') }}" class="text-indigo-600 hover:underline text-sm">&larr; Back to Recaps</a>
+            <a href="{{ route('recaps.index') }}" class="text-primary hover:underline text-sm">&larr; Back to Recaps</a>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">

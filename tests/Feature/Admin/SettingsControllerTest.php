@@ -28,7 +28,6 @@ test('update branding', function (): void {
         'app_name' => 'My Knowledge Base',
         'app_description' => 'A smart KB',
         'primary_color' => '#FF0000',
-        'secondary_color' => '#00FF00',
     ]);
 
     $response->assertRedirect();
@@ -44,7 +43,6 @@ test('update branding rejects invalid color', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.branding'), [
         'app_name' => 'Test',
         'primary_color' => 'not-a-color',
-        'secondary_color' => '#00FF00',
     ]);
 
     $response->assertSessionHasErrors('primary_color');
