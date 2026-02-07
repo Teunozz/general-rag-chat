@@ -11,7 +11,7 @@
                 </a>
                 <div class="flex items-center space-x-3 ml-4">
                     <form method="POST" action="{{ route('conversations.destroy', $conversation) }}" class="inline"
-                        x-data @submit.prevent="if (confirm('Delete this conversation and all its messages?')) $el.submit()">
+                        x-data="confirmDelete" data-confirm-message="Delete this conversation and all its messages?" @submit.prevent="confirmAndSubmit">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-red-500 hover:text-red-700 text-sm">Delete</button>

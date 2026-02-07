@@ -52,7 +52,7 @@
                                 </button>
                             </form>
                             <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline"
-                                x-data @submit.prevent="if (confirm('Delete this user and all their data? This cannot be undone.')) $el.submit()">
+                                x-data="confirmDelete" data-confirm-message="Delete this user and all their data? This cannot be undone." @submit.prevent="confirmAndSubmit">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:text-red-800">Delete</button>
                             </form>

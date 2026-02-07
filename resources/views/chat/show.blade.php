@@ -1,5 +1,5 @@
 <x-layouts.app :title="$conversation?->title ?? 'Chat'">
-    <div class="flex flex-col h-full" x-data="chatApp()">
+    <div class="flex flex-col h-full" x-data="chatApp" data-conversation-id="{{ $conversation?->id }}" data-store-route="{{ route('conversations.store') }}">
         {{-- Messages area --}}
         <div class="flex-1 overflow-y-auto px-4 py-6 space-y-4" id="messages-container">
             @if($conversation)
@@ -92,102 +92,4 @@
         </div>
     </div>
 
-    <script>
-    function chatApp() {
-        return {
-            messageInput: '',
-            isStreaming: false,
-            streamedContent: '',
-            renderedContent: '',
-            citations: [],
-            conversationId: {{ $conversation?->id ?? 'null' }},
-
-            async sendMessage() {
-                if (!this.messageInput.trim() || this.isStreaming) return;
-
-                const message = this.messageInput;
-                this.messageInput = '';
-                this.isStreaming = true;
-                this.streamedContent = '';
-                this.renderedContent = '';
-                this.citations = [];
-
-                // Create conversation if needed
-                if (!this.conversationId) {
-                    const resp = await fetch('{{ route("conversations.store") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        },
-                        body: JSON.stringify({}),
-                    });
-                    const data = await resp.json();
-                    this.conversationId = data.id;
-                    window.history.replaceState({}, '', `/chat/${data.id}`);
-                }
-
-                // Add user message to UI
-                const container = document.getElementById('messages-container');
-                const userDiv = document.createElement('div');
-                userDiv.className = 'max-w-3xl mx-auto flex justify-end';
-                userDiv.innerHTML = `<div class="bg-indigo-600 text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm"><div class="prose prose-sm max-w-none text-white">${this.escapeHtml(message)}</div></div>`;
-                container.insertBefore(userDiv, container.lastElementChild);
-
-                // Stream response
-                try {
-                    const response = await fetch(`/chat/${this.conversationId}/stream`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        },
-                        body: JSON.stringify({ message }),
-                    });
-
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = JSON.parse(line.slice(6));
-                                if (data.type === 'text') {
-                                    this.streamedContent += data.content;
-                                    this.renderedContent = window.marked.parse(this.streamedContent);
-                                } else if (data.type === 'citations') {
-                                    this.citations = data.citations;
-                                } else if (data.type === 'done') {
-                                    this.isStreaming = false;
-                                }
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.error('Stream error:', err);
-                    this.streamedContent = 'An error occurred while streaming the response.';
-                    this.renderedContent = '<p class="text-red-500">An error occurred while streaming the response.</p>';
-                    this.isStreaming = false;
-                }
-
-                // Scroll to bottom
-                container.scrollTop = container.scrollHeight;
-            },
-
-            escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-        };
-    }
-    </script>
 </x-layouts.app>

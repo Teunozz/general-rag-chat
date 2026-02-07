@@ -3,8 +3,7 @@
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full"
-    x-data="{ darkMode: localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches) }"
-    x-init="$watch('darkMode', val => { localStorage.setItem('theme', val ? 'dark' : 'light') })"
+    x-data="themeManager"
     :class="{ 'dark': darkMode }">
 <head>
     <meta charset="utf-8">

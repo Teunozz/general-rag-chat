@@ -1,7 +1,8 @@
 <x-layouts.app :title="'Sources'">
     <div class="px-4 py-8 max-w-6xl mx-auto"
-        x-data="sourcesList()"
-        x-init="startPolling()">
+        x-data="sourcesList"
+        data-has-processing="{{ $sources->contains('status', 'processing') || $sources->contains('status', 'pending') ? 'true' : 'false' }}"
+    >
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold">Sources</h1>
@@ -70,7 +71,7 @@
                                     <button type="submit" class="text-green-600 hover:text-green-800">Re-chunk</button>
                                 </form>
                                 <form method="POST" action="{{ route('admin.sources.destroy', $source) }}" class="inline"
-                                    x-data @submit.prevent="if (confirm('Delete this source and all its documents?')) $el.submit()">
+                                    x-data="confirmDelete" data-confirm-message="Delete this source and all its documents?" @submit.prevent="confirmAndSubmit">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-red-600 hover:text-red-800">Delete</button>
@@ -88,27 +89,4 @@
         </div>
     </div>
 
-    <script>
-    function sourcesList() {
-        return {
-            isPolling: false,
-            pollInterval: null,
-
-            startPolling() {
-                // Check if any source is processing
-                const hasProcessing = @json($sources->contains('status', 'processing') || $sources->contains('status', 'pending'));
-                if (hasProcessing) {
-                    this.isPolling = true;
-                    this.pollInterval = setInterval(() => {
-                        window.location.reload();
-                    }, 5000);
-                }
-            },
-
-            destroy() {
-                if (this.pollInterval) clearInterval(this.pollInterval);
-            }
-        };
-    }
-    </script>
 </x-layouts.app>
