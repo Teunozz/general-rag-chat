@@ -75,10 +75,12 @@ class ChatController extends Controller
         $ragContext = $ragBuilder->build($userMessage, $conversation);
 
         // Build conversation history for the agent
-        $history = $conversation->messages()
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Message> $rawMessages */
+        $rawMessages = $conversation->messages()
             ->where('is_summary', false)
             ->orderBy('created_at')
-            ->get()
+            ->get();
+        $history = $rawMessages
             ->map(fn (Message $msg): \Laravel\Ai\Messages\UserMessage|\Laravel\Ai\Messages\AssistantMessage|null => match ($msg->role) {
                 'user' => new UserMessage($msg->content),
                 'assistant' => new AssistantMessage($msg->content),

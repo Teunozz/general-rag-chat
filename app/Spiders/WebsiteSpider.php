@@ -15,6 +15,7 @@ class WebsiteSpider extends BasicSpider
 {
     public array $startUrls = [];
 
+    /** @phpstan-ignore property.defaultValue (Roach PHP accepts partial middleware interfaces) */
     public array $spiderMiddleware = [
         JsonLdArticleFilterMiddleware::class,
     ];
@@ -51,6 +52,7 @@ class WebsiteSpider extends BasicSpider
 
         $links = $response->filter('a[href]');
         foreach ($links as $link) {
+            /** @var \DOMElement $link */
             $href = $link->getAttribute('href');
             if ($href && ! str_starts_with($href, '#') && ! str_starts_with($href, 'javascript:')) {
                 $request = new Request('GET', $href, $this->parse(...));

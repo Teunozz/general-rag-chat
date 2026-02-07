@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Document;
 use App\Models\Source;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,7 +24,7 @@ class RechunkSourceJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->source->documents->each(function ($document): void {
+        $this->source->documents->each(function (Document $document): void {
             ChunkAndEmbedJob::dispatch($document);
         });
     }

@@ -19,6 +19,7 @@ class CipherSweetUserProvider extends EloquentUserProvider
         // Use CipherSweet blind index for email lookup
         $query->whereBlind('email', 'email_index', $credentials['email']);
 
+        /** @var (\Illuminate\Contracts\Auth\Authenticatable&\Illuminate\Database\Eloquent\Model)|null */
         return $query->first();
     }
 }

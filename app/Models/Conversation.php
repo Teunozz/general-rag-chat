@@ -18,16 +18,19 @@ class Conversation extends Model
         'summary',
     ];
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<Message, $this> */
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
     }
 
+    /** @return BelongsToMany<Source, $this> */
     public function sources(): BelongsToMany
     {
         return $this->belongsToMany(Source::class, 'conversation_source');

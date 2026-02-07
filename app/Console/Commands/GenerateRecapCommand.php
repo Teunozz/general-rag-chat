@@ -112,6 +112,7 @@ class GenerateRecapCommand extends Command
             'daily' => [now()->subDay()->startOfDay(), now()->subDay()->endOfDay()],
             'weekly' => [now()->subWeek()->startOfWeek(), now()->subWeek()->endOfWeek()],
             'monthly' => [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()],
+            default => throw new \LogicException("Unexpected recap type: {$type}"),
         };
     }
 }

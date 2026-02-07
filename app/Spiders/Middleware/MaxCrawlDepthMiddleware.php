@@ -22,6 +22,7 @@ class MaxCrawlDepthMiddleware implements ResponseMiddlewareInterface
         return $response;
     }
 
+    /** @phpstan-ignore method.unused (called by Configurable trait) */
     private function defaultOptions(): array
     {
         return ['maxDepth' => 1];

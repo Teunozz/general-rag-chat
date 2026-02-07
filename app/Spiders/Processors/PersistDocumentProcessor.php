@@ -49,6 +49,7 @@ class PersistDocumentProcessor implements ItemProcessorInterface
         return $item;
     }
 
+    /** @phpstan-ignore method.unused (called by Configurable trait) */
     private function defaultOptions(): array
     {
         return ['sourceId' => null];

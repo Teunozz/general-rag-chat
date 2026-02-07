@@ -27,6 +27,7 @@ class SameDomainMiddleware implements RequestMiddlewareInterface
         return $request;
     }
 
+    /** @phpstan-ignore method.unused (called by Configurable trait) */
     private function defaultOptions(): array
     {
         return ['domain' => null];

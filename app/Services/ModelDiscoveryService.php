@@ -18,7 +18,7 @@ class ModelDiscoveryService
 
     private function fetchOpenAiModels(string $type): array
     {
-        $apiKey = config('services.openai.api_key', env('OPENAI_API_KEY'));
+        $apiKey = config('services.openai.api_key');
         if (! $apiKey) {
             return [];
         }

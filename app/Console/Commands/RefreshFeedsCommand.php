@@ -17,7 +17,7 @@ class RefreshFeedsCommand extends Command
             ->where('status', '!=', 'processing')
             ->whereNotNull('refresh_interval')
             ->get()
-            ->filter(function ($source) {
+            ->filter(function (Source $source) {
                 if (! $source->last_indexed_at) {
                     return true;
                 }

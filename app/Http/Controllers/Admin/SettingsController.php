@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ChunkAndEmbedJob;
+use App\Models\Document;
 use App\Models\Source;
 use App\Services\ModelDiscoveryService;
 use App\Services\SystemSettingsService;
@@ -96,8 +97,8 @@ class SettingsController extends Controller
 
         if ($modelChanged) {
             // Dispatch rechunk-all
-            Source::where('status', 'ready')->each(function ($source): void {
-                $source->documents->each(fn ($doc) => ChunkAndEmbedJob::dispatch($doc));
+            Source::where('status', 'ready')->each(function (Source $source): void {
+                $source->documents->each(fn (Document $doc) => ChunkAndEmbedJob::dispatch($doc));
             });
 
             return back()->with('success', 'Embedding settings updated. All sources queued for re-chunking.');

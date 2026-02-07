@@ -29,11 +29,13 @@ class Document extends Model
         ];
     }
 
+    /** @return BelongsTo<Source, $this> */
     public function source(): BelongsTo
     {
         return $this->belongsTo(Source::class);
     }
 
+    /** @return HasMany<Chunk, $this> */
     public function chunks(): HasMany
     {
         return $this->hasMany(Chunk::class);

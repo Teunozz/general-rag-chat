@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int|null $refresh_interval
+ * @property \Carbon\Carbon|null $last_indexed_at
+ */
 class Source extends \Illuminate\Database\Eloquent\Model
 {
     use HasFactory;
@@ -40,6 +44,7 @@ class Source extends \Illuminate\Database\Eloquent\Model
         ];
     }
 
+    /** @return HasMany<Document, $this> */
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);

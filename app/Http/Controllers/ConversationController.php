@@ -22,6 +22,7 @@ class ConversationController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        /** @var Conversation $conversation */
         $conversation = $request->user()->conversations()->create([
             'title' => null,
         ]);

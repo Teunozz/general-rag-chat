@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property \Carbon\Carbon $period_start
+ * @property \Carbon\Carbon $period_end
+ */
 class Recap extends Model
 {
     use HasFactory;

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Conversation;
+use App\Models\Message;
 
 use function Laravel\Ai\agent;
 
@@ -22,6 +23,7 @@ class ConversationSummaryService
         }
 
         // Check if we already have a recent summary
+        /** @var Message|null $lastSummary */
         $lastSummary = $conversation->messages()->where('is_summary', true)->latest()->first();
         $messagesSinceSummary = $lastSummary
             ? $conversation->messages()->where('is_summary', false)->where('created_at', '>', $lastSummary->created_at)->count()
@@ -37,7 +39,7 @@ class ConversationSummaryService
             ->orderBy('created_at')
             ->get();
 
-        $transcript = $messages->map(fn ($m): string => "{$m->role}: {$m->content}")->implode("\n");
+        $transcript = $messages->map(fn (Message $m): string => "{$m->role}: {$m->content}")->implode("\n");
 
         try {
             $summaryAgent = agent(

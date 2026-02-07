@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Document;
 use App\Models\Source;
 use App\Spiders\Middleware\JsonLdArticleFilterMiddleware;
 use App\Spiders\Middleware\SameDomainMiddleware;
@@ -39,16 +40,16 @@ class CrawlWebsiteJob implements ShouldQueue
 
             $overrides = new Overrides(
                 startUrls: [$this->source->url],
-                downloaderMiddleware: [
+                downloaderMiddleware: [ // @phpstan-ignore argument.type (Roach PHP accepts [class, options] tuples)
                     [SameDomainMiddleware::class, ['domain' => $domain]],
                 ],
-                spiderMiddleware: [
+                spiderMiddleware: [ // @phpstan-ignore argument.type
                     [JsonLdArticleFilterMiddleware::class, [
                         'requireArticleMarkup' => $this->source->require_article_markup,
                         'minContentLength' => $this->source->min_content_length,
                     ]],
                 ],
-                itemProcessors: [
+                itemProcessors: [ // @phpstan-ignore argument.type
                     [PersistDocumentProcessor::class, ['sourceId' => $this->source->id]],
                 ],
             );
@@ -65,7 +66,7 @@ class CrawlWebsiteJob implements ShouldQueue
             ]);
 
             // Dispatch chunk and embed for each document
-            $this->source->documents->each(function ($document): void {
+            $this->source->documents->each(function (Document $document): void {
                 ChunkAndEmbedJob::dispatch($document);
             });
         } catch (\Throwable $e) {

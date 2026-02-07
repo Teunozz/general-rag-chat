@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\StoreWebsiteSourceRequest;
 use App\Http\Requests\Admin\UploadDocumentRequest;
 use App\Jobs\ChunkAndEmbedJob;
 use App\Jobs\CrawlWebsiteJob;
+use App\Models\Document;
 use App\Jobs\ProcessDocumentUploadJob;
 use App\Jobs\ProcessRssFeedJob;
 use App\Models\Source;
@@ -91,7 +92,7 @@ class SourceController extends Controller
 
     public function rechunk(Source $source): RedirectResponse
     {
-        $source->documents->each(function ($document): void {
+        $source->documents->each(function (Document $document): void {
             ChunkAndEmbedJob::dispatch($document);
         });
 
@@ -100,8 +101,8 @@ class SourceController extends Controller
 
     public function rechunkAll(): RedirectResponse
     {
-        Source::where('status', 'ready')->each(function ($source): void {
-            $source->documents->each(function ($document): void {
+        Source::where('status', 'ready')->each(function (Source $source): void {
+            $source->documents->each(function (Document $document): void {
                 ChunkAndEmbedJob::dispatch($document);
             });
         });
