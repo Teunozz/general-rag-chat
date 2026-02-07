@@ -20,11 +20,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Auth::provider('ciphersweet', fn ($app, array $config) => new CipherSweetUserProvider(
+        Auth::provider('ciphersweet', fn ($app, array $config): CipherSweetUserProvider => new CipherSweetUserProvider(
             $app->make(Hasher::class),
             $config['model']
         ));
 
-        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email') . '|' . $request->ip()));
     }
 }
