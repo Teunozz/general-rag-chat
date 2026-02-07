@@ -34,7 +34,7 @@ class ChunkAndEmbedJob implements ShouldQueue
         // Split content into chunks
         $chunks = $chunker->split($this->document->content);
 
-        if (empty($chunks)) {
+        if ($chunks === []) {
             return;
         }
 

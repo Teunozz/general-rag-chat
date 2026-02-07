@@ -6,7 +6,7 @@ class ChunkingService
 {
     public function split(string $content, int $chunkSize = 1000, int $overlap = 200): array
     {
-        if (empty(trim($content))) {
+        if (in_array(trim($content), ['', '0'], true)) {
             return [];
         }
 
@@ -20,29 +20,24 @@ class ChunkingService
         foreach ($segments as $segment) {
             if (mb_strlen($currentChunk . $segment) > $chunkSize && ! empty($currentChunk)) {
                 $chunks[] = [
-                    'content' => trim($currentChunk),
+                    'content' => trim((string) $currentChunk),
                     'position' => $position,
-                    'token_count' => $this->countTokens(trim($currentChunk)),
+                    'token_count' => $this->countTokens(trim((string) $currentChunk)),
                 ];
                 $position++;
-
                 // Overlap: keep the end of the previous chunk
-                if ($overlap > 0) {
-                    $currentChunk = mb_substr($currentChunk, -$overlap) . $segment;
-                } else {
-                    $currentChunk = $segment;
-                }
+                $currentChunk = $overlap > 0 ? mb_substr((string) $currentChunk, -$overlap) . $segment : $segment;
             } else {
                 $currentChunk .= $segment;
             }
         }
 
         // Don't forget the last chunk
-        if (! empty(trim($currentChunk))) {
+        if (!in_array(trim((string) $currentChunk), ['', '0'], true)) {
             $chunks[] = [
-                'content' => trim($currentChunk),
+                'content' => trim((string) $currentChunk),
                 'position' => $position,
-                'token_count' => $this->countTokens(trim($currentChunk)),
+                'token_count' => $this->countTokens(trim((string) $currentChunk)),
             ];
         }
 

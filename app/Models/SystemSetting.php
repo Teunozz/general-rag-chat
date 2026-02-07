@@ -20,7 +20,7 @@ class SystemSetting extends Model
             return $default;
         }
 
-        return json_decode($setting->value, true);
+        return json_decode((string) $setting->value, true);
     }
 
     public static function setValue(string $group, string $key, mixed $value): void
@@ -35,7 +35,7 @@ class SystemSetting extends Model
     {
         return static::where('group', $group)
             ->pluck('value', 'key')
-            ->map(fn ($value) => json_decode($value, true))
+            ->map(fn ($value): mixed => json_decode((string) $value, true))
             ->toArray();
     }
 }

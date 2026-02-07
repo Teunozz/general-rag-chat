@@ -3,7 +3,7 @@
 use App\Services\EmbeddingService;
 use App\Services\SystemSettingsService;
 
-test('dimensions returns setting value', function () {
+test('dimensions returns setting value', function (): void {
     $settings = Mockery::mock(SystemSettingsService::class);
     $settings->shouldReceive('get')
         ->with('embedding', 'dimensions', 1536)
@@ -14,7 +14,7 @@ test('dimensions returns setting value', function () {
     expect($service->dimensions())->toBe(768);
 });
 
-test('dimensions defaults to 1536', function () {
+test('dimensions defaults to 1536', function (): void {
     $settings = Mockery::mock(SystemSettingsService::class);
     $settings->shouldReceive('get')
         ->with('embedding', 'dimensions', 1536)

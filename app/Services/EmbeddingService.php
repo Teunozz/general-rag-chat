@@ -7,7 +7,7 @@ use Laravel\Ai\Embeddings;
 class EmbeddingService
 {
     public function __construct(
-        private SystemSettingsService $settings,
+        private readonly SystemSettingsService $settings,
     ) {
     }
 
@@ -22,7 +22,7 @@ class EmbeddingService
 
     public function embedBatch(array $texts): array
     {
-        if (empty($texts)) {
+        if ($texts === []) {
             return [];
         }
 

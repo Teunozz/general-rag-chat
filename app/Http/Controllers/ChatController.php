@@ -79,7 +79,7 @@ class ChatController extends Controller
             ->where('is_summary', false)
             ->orderBy('created_at')
             ->get()
-            ->map(fn (Message $msg) => match ($msg->role) {
+            ->map(fn (Message $msg): \Laravel\Ai\Messages\UserMessage|\Laravel\Ai\Messages\AssistantMessage|null => match ($msg->role) {
                 'user' => new UserMessage($msg->content),
                 'assistant' => new AssistantMessage($msg->content),
                 default => null,
@@ -102,14 +102,14 @@ class ChatController extends Controller
 
         $fullResponse = '';
 
-        return response()->stream(function () use ($chatAgent, $userMessage, $conversation, $ragContext, $settings, &$fullResponse) {
+        return response()->stream(function () use ($chatAgent, $userMessage, $conversation, $ragContext, $settings, &$fullResponse): void {
             $streamResponse = $chatAgent->stream(
                 $userMessage,
                 provider: $settings->get('llm', 'provider', 'openai'),
                 model: $settings->get('llm', 'model', 'gpt-4o'),
             );
 
-            $streamResponse->each(function ($event) use (&$fullResponse) {
+            $streamResponse->each(function ($event) use (&$fullResponse): void {
                 if ($event instanceof TextDelta) {
                     $fullResponse .= $event->delta;
                     echo "data: " . json_encode(['type' => 'text', 'content' => $event->delta]) . "\n\n";
@@ -121,7 +121,7 @@ class ChatController extends Controller
             });
 
             // Send citations
-            if (! empty($ragContext->citations)) {
+            if ($ragContext->citations !== []) {
                 echo "data: " . json_encode(['type' => 'citations', 'citations' => $ragContext->citations]) . "\n\n";
                 if (ob_get_level() > 0) {
                     ob_flush();
@@ -172,7 +172,7 @@ class ChatController extends Controller
         );
 
         return response()->json([
-            'results' => $chunks->map(fn ($chunk) => [
+            'results' => $chunks->map(fn ($chunk): array => [
                 'chunk_id' => $chunk->id,
                 'content' => $chunk->content,
                 'score' => $chunk->neighbor_distance ?? null,

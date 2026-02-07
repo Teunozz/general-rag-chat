@@ -17,6 +17,7 @@ class Recap extends Model
         'summary',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

@@ -10,12 +10,15 @@ class ForcePasswordChange
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user() && $request->user()->must_change_password) {
-            if (! $request->routeIs('password.change', 'password.change.store', 'logout')) {
-                return redirect()->route('password.change');
-            }
+        if (!$request->user()) {
+            return $next($request);
         }
-
+        if (!$request->user()->must_change_password) {
+            return $next($request);
+        }
+        if (! $request->routeIs('password.change', 'password.change.store', 'logout')) {
+            return redirect()->route('password.change');
+        }
         return $next($request);
     }
 }

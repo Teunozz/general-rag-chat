@@ -18,6 +18,7 @@ class Message extends Model
         'is_summary',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

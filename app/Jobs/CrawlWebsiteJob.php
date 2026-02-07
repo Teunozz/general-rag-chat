@@ -39,14 +39,14 @@ class CrawlWebsiteJob implements ShouldQueue
 
             $overrides = new Overrides(
                 startUrls: [$this->source->url],
+                downloaderMiddleware: [
+                    [SameDomainMiddleware::class, ['domain' => $domain]],
+                ],
                 spiderMiddleware: [
                     [JsonLdArticleFilterMiddleware::class, [
                         'requireArticleMarkup' => $this->source->require_article_markup,
                         'minContentLength' => $this->source->min_content_length,
                     ]],
-                ],
-                downloaderMiddleware: [
-                    [SameDomainMiddleware::class, ['domain' => $domain]],
                 ],
                 itemProcessors: [
                     [PersistDocumentProcessor::class, ['sourceId' => $this->source->id]],
@@ -65,7 +65,7 @@ class CrawlWebsiteJob implements ShouldQueue
             ]);
 
             // Dispatch chunk and embed for each document
-            $this->source->documents->each(function ($document) {
+            $this->source->documents->each(function ($document): void {
                 ChunkAndEmbedJob::dispatch($document);
             });
         } catch (\Throwable $e) {

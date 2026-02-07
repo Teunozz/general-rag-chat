@@ -1,6 +1,6 @@
 <?php
 
-test('health endpoint returns ok', function () {
+test('health endpoint returns ok', function (): void {
     $response = $this->get('/health');
 
     $response->assertStatus(200);

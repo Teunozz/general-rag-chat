@@ -12,6 +12,7 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
+    #[\Override]
     public function register(): void
     {
         //
@@ -19,15 +20,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Auth::provider('ciphersweet', function ($app, array $config) {
-            return new CipherSweetUserProvider(
-                $app->make(Hasher::class),
-                $config['model']
-            );
-        });
+        Auth::provider('ciphersweet', fn ($app, array $config) => new CipherSweetUserProvider(
+            $app->make(Hasher::class),
+            $config['model']
+        ));
 
-        RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->input('email').'|'.$request->ip());
-        });
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)->by($request->input('email').'|'.$request->ip()));
     }
 }

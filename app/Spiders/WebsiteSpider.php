@@ -53,7 +53,7 @@ class WebsiteSpider extends BasicSpider
         foreach ($links as $link) {
             $href = $link->getAttribute('href');
             if ($href && ! str_starts_with($href, '#') && ! str_starts_with($href, 'javascript:')) {
-                $request = new Request('GET', $href, [$this, 'parse']);
+                $request = new Request('GET', $href, $this->parse(...));
                 $request = $request->withMeta('depth', $currentDepth + 1);
                 yield ParseResult::fromValue($request);
             }

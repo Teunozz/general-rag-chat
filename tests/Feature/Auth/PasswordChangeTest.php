@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('password change form is displayed', function () {
+test('password change form is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('password.change'));
@@ -13,7 +13,7 @@ test('password change form is displayed', function () {
     $response->assertOk();
 });
 
-test('forced password change redirects to form', function () {
+test('forced password change redirects to form', function (): void {
     $user = User::factory()->mustChangePassword()->create();
 
     $response = $this->actingAs($user)->get(route('chat.index'));
@@ -21,7 +21,7 @@ test('forced password change redirects to form', function () {
     $response->assertRedirect(route('password.change'));
 });
 
-test('successful password change', function () {
+test('successful password change', function (): void {
     $user = User::factory()->mustChangePassword()->create(['password' => 'oldpassword']);
 
     $response = $this->actingAs($user)->post(route('password.change.store'), [
@@ -35,7 +35,7 @@ test('successful password change', function () {
     expect($user->must_change_password)->toBeFalse();
 });
 
-test('wrong current password fails', function () {
+test('wrong current password fails', function (): void {
     $user = User::factory()->create(['password' => 'oldpassword']);
 
     $response = $this->actingAs($user)->post(route('password.change.store'), [
@@ -47,7 +47,7 @@ test('wrong current password fails', function () {
     $response->assertSessionHasErrors('current_password');
 });
 
-test('password confirmation mismatch fails', function () {
+test('password confirmation mismatch fails', function (): void {
     $user = User::factory()->create(['password' => 'oldpassword']);
 
     $response = $this->actingAs($user)->post(route('password.change.store'), [

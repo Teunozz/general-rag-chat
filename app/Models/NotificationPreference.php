@@ -18,6 +18,7 @@ class NotificationPreference extends Model
         'monthly_recap',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

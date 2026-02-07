@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('notification settings page is displayed', function () {
+test('notification settings page is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('notifications.edit'));
@@ -14,7 +14,7 @@ test('notification settings page is displayed', function () {
     $response->assertOk();
 });
 
-test('auto creates preference record', function () {
+test('auto creates preference record', function (): void {
     $user = User::factory()->create();
 
     $this->actingAs($user)->get(route('notifications.edit'));
@@ -24,7 +24,7 @@ test('auto creates preference record', function () {
     ]);
 });
 
-test('update master email toggle', function () {
+test('update master email toggle', function (): void {
     $user = User::factory()->create();
     NotificationPreference::create(['user_id' => $user->id]);
 
@@ -46,7 +46,7 @@ test('update master email toggle', function () {
     ]);
 });
 
-test('disable all notifications', function () {
+test('disable all notifications', function (): void {
     $user = User::factory()->create();
     NotificationPreference::create([
         'user_id' => $user->id,
@@ -70,7 +70,7 @@ test('disable all notifications', function () {
     ]);
 });
 
-test('guest cannot access notifications', function () {
+test('guest cannot access notifications', function (): void {
     $response = $this->get(route('notifications.edit'));
 
     $response->assertRedirect(route('login'));

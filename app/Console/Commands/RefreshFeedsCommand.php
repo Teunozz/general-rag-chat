@@ -27,7 +27,7 @@ class RefreshFeedsCommand extends Command
         $count = $sources->count();
         $this->info("Found {$count} RSS sources due for refresh.");
 
-        $sources->each(function ($source) {
+        $sources->each(function ($source): void {
             ProcessRssFeedJob::dispatch($source);
             $this->line("Dispatched refresh for: {$source->name}");
         });

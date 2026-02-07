@@ -9,23 +9,23 @@ use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
 });
 
-test('source index is displayed', function () {
+test('source index is displayed', function (): void {
     $response = $this->actingAs($this->admin)->get(route('admin.sources.index'));
 
     $response->assertOk();
 });
 
-test('create page is displayed', function () {
+test('create page is displayed', function (): void {
     $response = $this->actingAs($this->admin)->get(route('admin.sources.create'));
 
     $response->assertOk();
 });
 
-test('store website source', function () {
+test('store website source', function (): void {
     Queue::fake();
 
     $response = $this->actingAs($this->admin)->post(route('admin.sources.store'), [
@@ -45,7 +45,7 @@ test('store website source', function () {
     Queue::assertPushed(CrawlWebsiteJob::class);
 });
 
-test('store rss source', function () {
+test('store rss source', function (): void {
     Queue::fake();
 
     $response = $this->actingAs($this->admin)->post(route('admin.sources.store'), [
@@ -62,7 +62,7 @@ test('store rss source', function () {
     Queue::assertPushed(ProcessRssFeedJob::class);
 });
 
-test('store rejects invalid type', function () {
+test('store rejects invalid type', function (): void {
     $response = $this->actingAs($this->admin)->post(route('admin.sources.store'), [
         'type' => 'invalid',
         'name' => 'Bad Source',
@@ -71,7 +71,7 @@ test('store rejects invalid type', function () {
     $response->assertSessionHasErrors('type');
 });
 
-test('non admin cannot access sources', function () {
+test('non admin cannot access sources', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('admin.sources.index'));
@@ -79,13 +79,13 @@ test('non admin cannot access sources', function () {
     $response->assertForbidden();
 });
 
-test('guest cannot access sources', function () {
+test('guest cannot access sources', function (): void {
     $response = $this->get(route('admin.sources.index'));
 
     $response->assertRedirect(route('login'));
 });
 
-test('delete source', function () {
+test('delete source', function (): void {
     $source = Source::create([
         'name' => 'To Delete',
         'type' => 'website',
@@ -99,7 +99,7 @@ test('delete source', function () {
     $this->assertDatabaseMissing('sources', ['id' => $source->id]);
 });
 
-test('reindex dispatches job', function () {
+test('reindex dispatches job', function (): void {
     Queue::fake();
 
     $source = Source::create([

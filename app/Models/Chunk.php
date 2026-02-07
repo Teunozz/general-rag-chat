@@ -21,6 +21,7 @@ class Chunk extends Model
         'embedding',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

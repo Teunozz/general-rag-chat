@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->recap = Recap::create([
         'type' => 'daily',
         'period_start' => now()->subDay()->startOfDay(),
@@ -22,7 +22,7 @@ beforeEach(function () {
     ]);
 });
 
-test('sends email to opted in users', function () {
+test('sends email to opted in users', function (): void {
     Mail::fake();
 
     $user = User::factory()->create();
@@ -32,12 +32,12 @@ test('sends email to opted in users', function () {
         'daily_recap' => true,
     ]);
 
-    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
+    new SendRecapEmailJob($this->recap)->handle(app(SystemSettingsService::class));
 
     Mail::assertQueued(RecapMail::class);
 });
 
-test('skips users with email disabled', function () {
+test('skips users with email disabled', function (): void {
     Mail::fake();
 
     $user = User::factory()->create();
@@ -47,12 +47,12 @@ test('skips users with email disabled', function () {
         'daily_recap' => true,
     ]);
 
-    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
+    new SendRecapEmailJob($this->recap)->handle(app(SystemSettingsService::class));
 
     Mail::assertNothingQueued();
 });
 
-test('skips users with recap type disabled', function () {
+test('skips users with recap type disabled', function (): void {
     Mail::fake();
 
     $user = User::factory()->create();
@@ -62,12 +62,12 @@ test('skips users with recap type disabled', function () {
         'daily_recap' => false,
     ]);
 
-    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
+    new SendRecapEmailJob($this->recap)->handle(app(SystemSettingsService::class));
 
     Mail::assertNothingQueued();
 });
 
-test('skips inactive users', function () {
+test('skips inactive users', function (): void {
     Mail::fake();
 
     $user = User::factory()->inactive()->create();
@@ -77,12 +77,12 @@ test('skips inactive users', function () {
         'daily_recap' => true,
     ]);
 
-    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
+    new SendRecapEmailJob($this->recap)->handle(app(SystemSettingsService::class));
 
     Mail::assertNothingQueued();
 });
 
-test('respects system email toggle', function () {
+test('respects system email toggle', function (): void {
     Mail::fake();
 
     SystemSetting::updateOrCreate(
@@ -97,7 +97,7 @@ test('respects system email toggle', function () {
         'daily_recap' => true,
     ]);
 
-    (new SendRecapEmailJob($this->recap))->handle(app(SystemSettingsService::class));
+    new SendRecapEmailJob($this->recap)->handle(app(SystemSettingsService::class));
 
     Mail::assertNothingQueued();
 });

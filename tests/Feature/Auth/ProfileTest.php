@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('profile edit page is displayed', function () {
+test('profile edit page is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('profile.edit'));
@@ -13,7 +13,7 @@ test('profile edit page is displayed', function () {
     $response->assertOk();
 });
 
-test('profile can be updated', function () {
+test('profile can be updated', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->put(route('profile.update'), [
@@ -27,7 +27,7 @@ test('profile can be updated', function () {
         ->and($user->email)->toBe('updated@example.com');
 });
 
-test('name is required', function () {
+test('name is required', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->put(route('profile.update'), [
@@ -38,7 +38,7 @@ test('name is required', function () {
     $response->assertSessionHasErrors('name');
 });
 
-test('email must be valid', function () {
+test('email must be valid', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->put(route('profile.update'), [
@@ -49,7 +49,7 @@ test('email must be valid', function () {
     $response->assertSessionHasErrors('email');
 });
 
-test('guest cannot access profile', function () {
+test('guest cannot access profile', function (): void {
     $response = $this->get(route('profile.edit'));
 
     $response->assertRedirect(route('login'));

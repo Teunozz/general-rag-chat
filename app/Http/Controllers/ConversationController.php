@@ -17,7 +17,7 @@ class ConversationController extends Controller
             ->orderByDesc('updated_at')
             ->paginate(20);
 
-        return view('conversations.index', compact('conversations'));
+        return view('conversations.index', ['conversations' => $conversations]);
     }
 
     public function store(Request $request): JsonResponse

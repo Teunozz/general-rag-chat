@@ -5,17 +5,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
 });
 
-test('settings page is displayed', function () {
+test('settings page is displayed', function (): void {
     $response = $this->actingAs($this->admin)->get(route('admin.settings.edit'));
 
     $response->assertOk();
 });
 
-test('non admin cannot access settings', function () {
+test('non admin cannot access settings', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('admin.settings.edit'));
@@ -23,7 +23,7 @@ test('non admin cannot access settings', function () {
     $response->assertForbidden();
 });
 
-test('update branding', function () {
+test('update branding', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.branding'), [
         'app_name' => 'My Knowledge Base',
         'app_description' => 'A smart KB',
@@ -40,7 +40,7 @@ test('update branding', function () {
     ]);
 });
 
-test('update branding rejects invalid color', function () {
+test('update branding rejects invalid color', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.branding'), [
         'app_name' => 'Test',
         'primary_color' => 'not-a-color',
@@ -50,7 +50,7 @@ test('update branding rejects invalid color', function () {
     $response->assertSessionHasErrors('primary_color');
 });
 
-test('update llm settings', function () {
+test('update llm settings', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.llm'), [
         'provider' => 'anthropic',
         'model' => 'claude-opus-4-6',
@@ -60,7 +60,7 @@ test('update llm settings', function () {
     $response->assertSessionHas('success');
 });
 
-test('update llm rejects invalid provider', function () {
+test('update llm rejects invalid provider', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.llm'), [
         'provider' => 'invalid_provider',
         'model' => 'some-model',
@@ -69,7 +69,7 @@ test('update llm rejects invalid provider', function () {
     $response->assertSessionHasErrors('provider');
 });
 
-test('update chat settings', function () {
+test('update chat settings', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.chat'), [
         'context_chunk_count' => 50,
         'temperature' => 0.7,
@@ -86,7 +86,7 @@ test('update chat settings', function () {
     $response->assertSessionHas('success');
 });
 
-test('update recap settings', function () {
+test('update recap settings', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.recap'), [
         'daily_enabled' => true,
         'weekly_enabled' => false,
@@ -102,7 +102,7 @@ test('update recap settings', function () {
     $response->assertSessionHas('success');
 });
 
-test('update email settings', function () {
+test('update email settings', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.email'), [
         'system_enabled' => true,
     ]);

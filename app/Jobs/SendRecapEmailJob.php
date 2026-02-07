@@ -37,7 +37,7 @@ class SendRecapEmailJob implements ShouldQueue
 
         // Find users who have opted in
         $users = User::where('is_active', true)
-            ->whereHas('notificationPreference', function ($query) use ($preferenceColumn) {
+            ->whereHas('notificationPreference', function ($query) use ($preferenceColumn): void {
                 $query->where('email_enabled', true)
                     ->where($preferenceColumn, true);
             })

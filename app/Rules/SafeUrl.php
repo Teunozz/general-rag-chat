@@ -9,7 +9,7 @@ class SafeUrl implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $parsed = parse_url($value);
+        $parsed = parse_url((string) $value);
 
         if (! $parsed || empty($parsed['host'])) {
             $fail('The :attribute must be a valid URL.');

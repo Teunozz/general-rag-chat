@@ -23,7 +23,7 @@ class RechunkSourceJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->source->documents->each(function ($document) {
+        $this->source->documents->each(function ($document): void {
             ChunkAndEmbedJob::dispatch($document);
         });
     }

@@ -6,7 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('recap index is displayed', function () {
+test('recap index is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('recaps.index'));
@@ -14,7 +14,7 @@ test('recap index is displayed', function () {
     $response->assertOk();
 });
 
-test('recap index shows recaps', function () {
+test('recap index shows recaps', function (): void {
     $user = User::factory()->create();
     Recap::create([
         'type' => 'daily',
@@ -30,7 +30,7 @@ test('recap index shows recaps', function () {
     $response->assertSee('Test daily recap summary.');
 });
 
-test('recap show displays recap', function () {
+test('recap show displays recap', function (): void {
     $user = User::factory()->create();
     $recap = Recap::create([
         'type' => 'weekly',
@@ -46,7 +46,7 @@ test('recap show displays recap', function () {
     $response->assertSee('Weekly summary content.');
 });
 
-test('guest cannot access recaps', function () {
+test('guest cannot access recaps', function (): void {
     $response = $this->get(route('recaps.index'));
 
     $response->assertRedirect(route('login'));

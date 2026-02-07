@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->admin = User::factory()->admin()->create();
 });
 
-test('edit source page', function () {
+test('edit source page', function (): void {
     $source = Source::create([
         'name' => 'Edit Me',
         'type' => 'website',
@@ -27,7 +27,7 @@ test('edit source page', function () {
     $response->assertOk();
 });
 
-test('update source', function () {
+test('update source', function (): void {
     $source = Source::create([
         'name' => 'Old Name',
         'type' => 'website',
@@ -47,7 +47,7 @@ test('update source', function () {
         ->and($source->crawl_depth)->toBe(5);
 });
 
-test('delete cascades to documents', function () {
+test('delete cascades to documents', function (): void {
     $source = Source::create([
         'name' => 'With Docs',
         'type' => 'website',
@@ -68,7 +68,7 @@ test('delete cascades to documents', function () {
     $this->assertDatabaseMissing('documents', ['id' => $document->id]);
 });
 
-test('reindex website dispatches crawl job', function () {
+test('reindex website dispatches crawl job', function (): void {
     Queue::fake();
 
     $source = Source::create([
@@ -84,7 +84,7 @@ test('reindex website dispatches crawl job', function () {
     Queue::assertPushed(CrawlWebsiteJob::class);
 });
 
-test('rechunk dispatches chunk jobs', function () {
+test('rechunk dispatches chunk jobs', function (): void {
     Queue::fake();
 
     $source = Source::create([
@@ -107,7 +107,7 @@ test('rechunk dispatches chunk jobs', function () {
     Queue::assertPushed(ChunkAndEmbedJob::class);
 });
 
-test('rechunk all dispatches for ready sources', function () {
+test('rechunk all dispatches for ready sources', function (): void {
     Queue::fake();
 
     $readySource = Source::create([

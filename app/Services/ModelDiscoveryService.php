@@ -11,7 +11,7 @@ class ModelDiscoveryService
         return match ($provider) {
             'openai' => $this->fetchOpenAiModels($type),
             'anthropic' => $this->fetchAnthropicModels($type),
-            'gemini' => $this->fetchGeminiModels($type),
+            'gemini' => $this->fetchGeminiModels(),
             default => [],
         };
     }
@@ -31,20 +31,18 @@ class ModelDiscoveryService
                 return [];
             }
 
-            $models = collect($response->json('data', []))
-                ->filter(function ($model) use ($type) {
+            return collect($response->json('data', []))
+                ->filter(function (array $model) use ($type): bool {
                     $id = $model['id'] ?? '';
                     if ($type === 'embedding') {
                         return str_contains($id, 'embedding');
                     }
                     return str_contains($id, 'gpt') || str_contains($id, 'o1') || str_contains($id, 'o3');
                 })
-                ->map(fn ($model) => ['id' => $model['id'], 'name' => $model['id']])
+                ->map(fn ($model): array => ['id' => $model['id'], 'name' => $model['id']])
                 ->sortBy('id')
                 ->values()
                 ->toArray();
-
-            return $models;
         } catch (\Throwable) {
             return [];
         }
@@ -63,7 +61,7 @@ class ModelDiscoveryService
         ];
     }
 
-    private function fetchGeminiModels(string $type): array
+    private function fetchGeminiModels(): array
     {
         return [
             ['id' => 'gemini-2.0-flash', 'name' => 'Gemini 2.0 Flash'],

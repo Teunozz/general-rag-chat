@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class () extends Migration {
     public function up(): void
     {
-        Schema::create('messages', function (Blueprint $table) {
+        Schema::create('messages', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('conversation_id')->constrained()->cascadeOnDelete();
             $table->string('role', 20);

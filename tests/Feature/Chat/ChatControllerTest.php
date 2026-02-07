@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('chat index is displayed', function () {
+test('chat index is displayed', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('chat.index'));
@@ -13,7 +13,7 @@ test('chat index is displayed', function () {
     $response->assertOk();
 });
 
-test('chat show displays conversation', function () {
+test('chat show displays conversation', function (): void {
     $user = User::factory()->create();
     $conversation = $user->conversations()->create(['title' => 'Test Chat']);
 
@@ -22,7 +22,7 @@ test('chat show displays conversation', function () {
     $response->assertOk();
 });
 
-test('chat show displays messages', function () {
+test('chat show displays messages', function (): void {
     $user = User::factory()->create();
     $conversation = $user->conversations()->create(['title' => 'Test Chat']);
     $conversation->messages()->create([
@@ -36,7 +36,7 @@ test('chat show displays messages', function () {
     $response->assertSee('Hello world');
 });
 
-test('user cannot view others conversation', function () {
+test('user cannot view others conversation', function (): void {
     $owner = User::factory()->create();
     $other = User::factory()->create();
     $conversation = $owner->conversations()->create(['title' => 'Private']);
@@ -46,13 +46,13 @@ test('user cannot view others conversation', function () {
     $response->assertForbidden();
 });
 
-test('guest cannot access chat', function () {
+test('guest cannot access chat', function (): void {
     $response = $this->get(route('chat.index'));
 
     $response->assertRedirect(route('login'));
 });
 
-test('stream requires message', function () {
+test('stream requires message', function (): void {
     $user = User::factory()->create();
     $conversation = $user->conversations()->create(['title' => 'Test']);
 

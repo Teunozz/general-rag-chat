@@ -7,9 +7,10 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 class CipherSweetUserProvider extends EloquentUserProvider
 {
+    #[\Override]
     public function retrieveByCredentials(array $credentials): ?Authenticatable
     {
-        if (empty($credentials) || ! isset($credentials['email'])) {
+        if ($credentials === [] || ! isset($credentials['email'])) {
             return null;
         }
 

@@ -11,11 +11,11 @@ class RecapController extends Controller
     {
         $recaps = Recap::orderByDesc('period_end')->paginate(20);
 
-        return view('recaps.index', compact('recaps'));
+        return view('recaps.index', ['recaps' => $recaps]);
     }
 
     public function show(Recap $recap): View
     {
-        return view('recaps.show', compact('recap'));
+        return view('recaps.show', ['recap' => $recap]);
     }
 }

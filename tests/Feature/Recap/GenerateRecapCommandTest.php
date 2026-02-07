@@ -6,12 +6,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('rejects invalid type', function () {
+test('rejects invalid type', function (): void {
     $this->artisan('app:generate-recap', ['type' => 'invalid'])
         ->assertFailed();
 });
 
-test('skips when disabled', function () {
+test('skips when disabled', function (): void {
     SystemSetting::updateOrCreate(
         ['group' => 'recap', 'key' => 'daily_enabled'],
         ['value' => json_encode(false)],
@@ -23,7 +23,7 @@ test('skips when disabled', function () {
     $this->assertDatabaseMissing('recaps', ['type' => 'daily']);
 });
 
-test('skips when no documents', function () {
+test('skips when no documents', function (): void {
     SystemSetting::updateOrCreate(
         ['group' => 'recap', 'key' => 'daily_enabled'],
         ['value' => json_encode(true)],
@@ -39,7 +39,7 @@ test('skips when no documents', function () {
     $this->assertDatabaseMissing('recaps', ['type' => 'daily']);
 });
 
-test('skips duplicate recap', function () {
+test('skips duplicate recap', function (): void {
     [$periodStart, $periodEnd] = [
         now()->subDay()->startOfDay(),
         now()->subDay()->endOfDay(),

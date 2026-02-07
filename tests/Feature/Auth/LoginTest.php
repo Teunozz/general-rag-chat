@@ -5,14 +5,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('login form is displayed', function () {
+test('login form is displayed', function (): void {
     $response = $this->get(route('login'));
 
     $response->assertOk();
     $response->assertSee('Log in');
 });
 
-test('successful login redirects to chat', function () {
+test('successful login redirects to chat', function (): void {
     $user = User::factory()->create(['password' => 'password123']);
 
     $response = $this->post(route('login.store'), [
@@ -24,7 +24,7 @@ test('successful login redirects to chat', function () {
     $this->assertAuthenticatedAs($user);
 });
 
-test('failed login shows error', function () {
+test('failed login shows error', function (): void {
     $user = User::factory()->create(['password' => 'password123']);
 
     $response = $this->post(route('login.store'), [
@@ -36,7 +36,7 @@ test('failed login shows error', function () {
     $this->assertGuest();
 });
 
-test('inactive user cannot login', function () {
+test('inactive user cannot login', function (): void {
     $user = User::factory()->inactive()->create(['password' => 'password123']);
 
     $response = $this->post(route('login.store'), [
@@ -48,7 +48,7 @@ test('inactive user cannot login', function () {
     $this->assertGuest();
 });
 
-test('logout clears session', function () {
+test('logout clears session', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->post(route('logout'));
@@ -57,7 +57,7 @@ test('logout clears session', function () {
     $this->assertGuest();
 });
 
-test('authenticated user is redirected from login', function () {
+test('authenticated user is redirected from login', function (): void {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)->get(route('chat.index'));

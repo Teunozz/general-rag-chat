@@ -16,7 +16,7 @@ class ContentExtractorService
             $title = $readability->getTitle();
             $content = $readability->getContent();
 
-            if (empty($content)) {
+            if (in_array($content, [null, '', '0'], true)) {
                 return null;
             }
 

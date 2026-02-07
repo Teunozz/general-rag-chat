@@ -21,7 +21,7 @@ class SourceController extends Controller
     {
         $sources = Source::orderByDesc('updated_at')->get();
 
-        return view('admin.sources.index', compact('sources'));
+        return view('admin.sources.index', ['sources' => $sources]);
     }
 
     public function create(): View
@@ -58,7 +58,7 @@ class SourceController extends Controller
 
     public function edit(Source $source): View
     {
-        return view('admin.sources.edit', compact('source'));
+        return view('admin.sources.edit', ['source' => $source]);
     }
 
     public function update(Request $request, Source $source): RedirectResponse
@@ -91,7 +91,7 @@ class SourceController extends Controller
 
     public function rechunk(Source $source): RedirectResponse
     {
-        $source->documents->each(function ($document) {
+        $source->documents->each(function ($document): void {
             ChunkAndEmbedJob::dispatch($document);
         });
 
@@ -100,8 +100,8 @@ class SourceController extends Controller
 
     public function rechunkAll(): RedirectResponse
     {
-        Source::where('status', 'ready')->each(function ($source) {
-            $source->documents->each(function ($document) {
+        Source::where('status', 'ready')->each(function ($source): void {
+            $source->documents->each(function ($document): void {
                 ChunkAndEmbedJob::dispatch($document);
             });
         });

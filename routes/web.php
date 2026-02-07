@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::get('/health', [HealthController::class, 'show'])->name('health');
 
-Route::middleware('guest')->group(function () {
+Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'showForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.store')->middleware('throttle:login');
 });
@@ -21,7 +21,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Authenticated routes
-Route::middleware(['auth', 'force.password.change'])->group(function () {
+Route::middleware(['auth', 'force.password.change'])->group(function (): void {
     // Chat
     Route::get('/', fn () => redirect()->route('chat.index'));
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
@@ -49,13 +49,13 @@ Route::middleware(['auth', 'force.password.change'])->group(function () {
 });
 
 // Password change (auth but exempt from force password change)
-Route::middleware('auth')->group(function () {
+Route::middleware('auth')->group(function (): void {
     Route::get('/password/change', [PasswordChangeController::class, 'showForm'])->name('password.change');
     Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.change.store');
 });
 
 // Admin routes
-Route::middleware(['auth', 'force.password.change', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'force.password.change', 'admin'])->prefix('admin')->group(function (): void {
     // Users
     Route::get('/users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users.index');
     Route::get('/users/create', [\App\Http\Controllers\Admin\UserController::class, 'create'])->name('admin.users.create');

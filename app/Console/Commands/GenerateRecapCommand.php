@@ -55,7 +55,7 @@ class GenerateRecapCommand extends Command
         }
 
         // Generate summary
-        $docSummaries = $documents->map(fn ($d) => "- {$d->title}: " . mb_substr($d->content, 0, 200))->implode("\n");
+        $docSummaries = $documents->map(fn ($d): string => "- {$d->title}: " . mb_substr((string) $d->content, 0, 200))->implode("\n");
 
         try {
             $recapAgent = agent(

@@ -14,7 +14,7 @@ class NotificationPreferenceController extends Controller
         $preferences = $request->user()->notificationPreference
             ?? NotificationPreference::create(['user_id' => $request->user()->id]);
 
-        return view('notifications.settings', compact('preferences'));
+        return view('notifications.settings', ['preferences' => $preferences]);
     }
 
     public function update(Request $request): RedirectResponse

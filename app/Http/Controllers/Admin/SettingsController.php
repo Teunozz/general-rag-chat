@@ -16,7 +16,7 @@ use Illuminate\View\View;
 class SettingsController extends Controller
 {
     public function __construct(
-        private SystemSettingsService $settings,
+        private readonly SystemSettingsService $settings,
     ) {
     }
 
@@ -96,7 +96,7 @@ class SettingsController extends Controller
 
         if ($modelChanged) {
             // Dispatch rechunk-all
-            Source::where('status', 'ready')->each(function ($source) {
+            Source::where('status', 'ready')->each(function ($source): void {
                 $source->documents->each(fn ($doc) => ChunkAndEmbedJob::dispatch($doc));
             });
 
@@ -165,7 +165,7 @@ class SettingsController extends Controller
 
     public function updateEmail(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        $request->validate([
             'system_enabled' => ['boolean'],
         ]);
 
@@ -177,7 +177,7 @@ class SettingsController extends Controller
     public function testEmail(Request $request): RedirectResponse
     {
         try {
-            Mail::raw('This is a test email from your Knowledge Base.', function ($message) use ($request) {
+            Mail::raw('This is a test email from your Knowledge Base.', function ($message) use ($request): void {
                 $message->to($request->user()->email)
                     ->subject('Test Email - Knowledge Base');
             });

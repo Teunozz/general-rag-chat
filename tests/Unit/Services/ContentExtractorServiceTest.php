@@ -2,12 +2,12 @@
 
 use App\Services\ContentExtractorService;
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->service = new ContentExtractorService();
 });
 
-test('extracts content from html', function () {
-    $html = <<<'HTML'
+test('extracts content from html', function (): void {
+    $html = <<<'HTML_WRAP'
     <html><head><title>Test Article</title></head>
     <body>
         <article>
@@ -16,7 +16,7 @@ test('extracts content from html', function () {
             <p>Another paragraph with more substantial content to ensure the readability parser can properly identify and extract the main content from this HTML document.</p>
         </article>
     </body></html>
-    HTML;
+    HTML_WRAP;
 
     $result = $this->service->extract($html);
 
@@ -25,7 +25,7 @@ test('extracts content from html', function () {
         ->and($result['content'])->not->toBeEmpty();
 });
 
-test('returns null on empty content', function () {
+test('returns null on empty content', function (): void {
     $html = '<html><body></body></html>';
 
     $result = $this->service->extract($html);
@@ -33,14 +33,14 @@ test('returns null on empty content', function () {
     expect($result)->toBeNull();
 });
 
-test('returns null on invalid html', function () {
+test('returns null on invalid html', function (): void {
     $result = $this->service->extract('not html at all');
 
     expect($result)->toBeNull();
 });
 
-test('strips html tags from content', function () {
-    $html = <<<'HTML'
+test('strips html tags from content', function (): void {
+    $html = <<<'HTML_WRAP'
     <html><head><title>Clean Content</title></head>
     <body>
         <article>
@@ -48,7 +48,7 @@ test('strips html tags from content', function () {
             <p>Additional paragraph content to ensure proper extraction by the readability algorithm. The content should be plain text without any HTML markup.</p>
         </article>
     </body></html>
-    HTML;
+    HTML_WRAP;
 
     $result = $this->service->extract($html);
 
@@ -58,7 +58,7 @@ test('strips html tags from content', function () {
     }
 });
 
-test('extracts title', function () {
+test('extracts title', function (): void {
     $html = <<<'HTML'
     <html><head><title>My Article Title</title></head>
     <body>

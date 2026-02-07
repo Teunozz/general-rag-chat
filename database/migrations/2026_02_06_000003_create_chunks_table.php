@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class () extends Migration {
     public function up(): void
     {
-        Schema::create('chunks', function (Blueprint $table) {
+        Schema::create('chunks', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('document_id')->constrained()->cascadeOnDelete();
             $table->text('content');

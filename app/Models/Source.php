@@ -26,6 +26,7 @@ class Source extends \Illuminate\Database\Eloquent\Model
         'chunk_count',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

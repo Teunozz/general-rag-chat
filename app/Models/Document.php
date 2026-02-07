@@ -21,6 +21,7 @@ class Document extends Model
         'published_at',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

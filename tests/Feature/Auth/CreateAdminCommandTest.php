@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('creates admin user', function () {
+test('creates admin user', function (): void {
     $this->artisan('app:create-admin')
         ->expectsQuestion('Admin name', 'Test Admin')
         ->expectsQuestion('Admin email', 'admin@example.com')
@@ -19,7 +19,7 @@ test('creates admin user', function () {
         ->and($user->must_change_password)->toBeFalse();
 });
 
-test('rejects invalid email', function () {
+test('rejects invalid email', function (): void {
     $this->artisan('app:create-admin')
         ->expectsQuestion('Admin name', 'Test Admin')
         ->expectsQuestion('Admin email', 'not-an-email')
@@ -27,7 +27,7 @@ test('rejects invalid email', function () {
         ->assertFailed();
 });
 
-test('rejects short password', function () {
+test('rejects short password', function (): void {
     $this->artisan('app:create-admin')
         ->expectsQuestion('Admin name', 'Test Admin')
         ->expectsQuestion('Admin email', 'admin@example.com')
@@ -35,7 +35,7 @@ test('rejects short password', function () {
         ->assertFailed();
 });
 
-test('rejects duplicate email', function () {
+test('rejects duplicate email', function (): void {
     User::factory()->create(['email' => 'existing@example.com']);
 
     $this->artisan('app:create-admin')

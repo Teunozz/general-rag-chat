@@ -9,7 +9,7 @@ use function Laravel\Ai\agent;
 class ConversationSummaryService
 {
     public function __construct(
-        private SystemSettingsService $settings,
+        private readonly SystemSettingsService $settings,
     ) {
     }
 
@@ -37,7 +37,7 @@ class ConversationSummaryService
             ->orderBy('created_at')
             ->get();
 
-        $transcript = $messages->map(fn ($m) => "{$m->role}: {$m->content}")->implode("\n");
+        $transcript = $messages->map(fn ($m): string => "{$m->role}: {$m->content}")->implode("\n");
 
         try {
             $summaryAgent = agent(

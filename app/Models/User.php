@@ -30,6 +30,7 @@ class User extends Authenticatable implements CipherSweetEncrypted
         'remember_token',
     ];
 
+    #[\Override]
     protected function casts(): array
     {
         return [

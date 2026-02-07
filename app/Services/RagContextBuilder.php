@@ -10,9 +10,8 @@ use Pgvector\Laravel\Distance;
 class RagContextBuilder
 {
     public function __construct(
-        private EmbeddingService $embedder,
-        private SystemSettingsService $settings,
-        private ChunkingService $chunker,
+        private readonly EmbeddingService $embedder,
+        private readonly SystemSettingsService $settings,
     ) {
     }
 
@@ -64,7 +63,7 @@ class RagContextBuilder
                 'document_title' => $document->title,
                 'document_url' => $document->url,
                 'source_name' => $source->name,
-                'snippet' => mb_substr($chunk->content, 0, 200),
+                'snippet' => mb_substr((string) $chunk->content, 0, 200),
             ];
 
             $contextParts[] = "[{$number}] {$chunk->content}";
@@ -95,7 +94,7 @@ class RagContextBuilder
             ->take($limit);
 
         if ($sourceIds) {
-            $builder->whereHas('document', function ($q) use ($sourceIds) {
+            $builder->whereHas('document', function ($q) use ($sourceIds): void {
                 $q->whereIn('source_id', $sourceIds);
             });
         }
@@ -132,7 +131,7 @@ class RagContextBuilder
     private function maybeAddFullDocuments(Collection $chunks, float $threshold, int $maxChars): Collection
     {
         $fullDocIds = $chunks
-            ->filter(fn ($chunk) => ($chunk->neighbor_distance ?? 1) < (1 - $threshold))
+            ->filter(fn ($chunk): bool => ($chunk->neighbor_distance ?? 1) < (1 - $threshold))
             ->pluck('document_id')
             ->unique();
 
@@ -142,8 +141,8 @@ class RagContextBuilder
                 ->whereNotIn('id', $chunks->pluck('id'))
                 ->with(['document.source'])
                 ->get()
-                ->filter(function ($chunk) use (&$maxChars) {
-                    $len = mb_strlen($chunk->content);
+                ->filter(function ($chunk) use (&$maxChars): bool {
+                    $len = mb_strlen((string) $chunk->content);
                     if ($maxChars - $len < 0) {
                         return false;
                     }
