@@ -18,3 +18,117 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Inline citation pills */
+.citation-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 8px;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 9999px;
+    border: 1px solid var(--color-gray-300);
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-700);
+    max-width: 180px;
+    vertical-align: baseline;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.citation-pill-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.citation-pill > svg {
+    flex-shrink: 0;
+}
+
+.citation-pill:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 10%, white);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+:is(.dark, .dark *) .citation-pill {
+    background-color: var(--color-gray-700);
+    border-color: var(--color-gray-600);
+    color: var(--color-gray-300);
+}
+
+:is(.dark, .dark *) .citation-pill:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-gray-800));
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* Citation pill tooltip popover */
+.citation-pill-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 300px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: var(--color-gray-800);
+    color: var(--color-gray-100);
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    font-weight: 400;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+    pointer-events: none;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.citation-pill-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--color-gray-800);
+}
+
+.citation-pill:hover .citation-pill-tooltip {
+    display: flex;
+}
+
+.citation-pill-tooltip-title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+}
+
+.citation-pill-tooltip-source {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-gray-400);
+}
+
+:is(.dark, .dark *) .citation-pill-tooltip {
+    background-color: var(--color-gray-900);
+    border: 1px solid var(--color-gray-700);
+}
+
+:is(.dark, .dark *) .citation-pill-tooltip::after {
+    border-top-color: var(--color-gray-900);
+}
+
+/* Override Tailwind Typography prose styles for citation pills */
+.prose .citation-pill,
+.prose .citation-pill:hover {
+    text-decoration: none;
+    font-weight: 500;
+}

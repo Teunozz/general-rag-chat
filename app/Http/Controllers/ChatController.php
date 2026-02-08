@@ -39,6 +39,10 @@ class ChatController extends Controller
         $this->authorize('view', $conversation);
 
         $messages = $conversation->messages()->orderBy('created_at')->get();
+        $renderedHtml = $messages->mapWithKeys(fn (Message $message): array => [
+            $message->id => $this->renderMessageHtml($message),
+        ]);
+
         $conversations = $request->user()
             ->conversations()
             ->orderByDesc('updated_at')
@@ -49,6 +53,7 @@ class ChatController extends Controller
             'conversations' => $conversations,
             'conversation' => $conversation,
             'messages' => $messages,
+            'renderedHtml' => $renderedHtml,
         ]);
     }
 
@@ -191,6 +196,53 @@ class ChatController extends Controller
                 'source_name' => $chunk->document->source->name,
             ]),
         ]);
+    }
+
+    private function renderMessageHtml(Message $message): string
+    {
+        if ($message->role === 'user') {
+            return e($message->content);
+        }
+
+        $html = Str::markdown($message->content);
+
+        /** @var array<int, array{number: int, document_title: string, document_url: string|null, source_name?: string}> $citations */
+        $citations = $message->citations ?? [];
+
+        if ($citations === []) {
+            return $html;
+        }
+
+        // Index citations by number for O(1) lookup
+        $citationsByNumber = [];
+        foreach ($citations as $citation) {
+            $citationsByNumber[$citation['number']] = $citation;
+        }
+
+        // Render the pill template once with placeholders, then str_replace per citation
+        $pillTemplate = view('components.citation-pill', [
+            'url' => '__PILL_URL__',
+            'domain' => '__PILL_DOMAIN__',
+            'title' => '__PILL_TITLE__',
+            'source' => '__PILL_SOURCE__',
+        ])->render();
+
+        return (string) preg_replace_callback('/\[(\d+)\]/', function (array $matches) use ($citationsByNumber, $pillTemplate): string {
+            $number = (int) $matches[1];
+
+            if (! isset($citationsByNumber[$number]) || ($citationsByNumber[$number]['document_url'] ?? null) === null) {
+                return $matches[0];
+            }
+
+            $citation = $citationsByNumber[$number];
+            $domain = preg_replace('/^www\./', '', (string) parse_url($citation['document_url'], PHP_URL_HOST));
+
+            return str_replace(
+                ['__PILL_URL__', '__PILL_DOMAIN__', '__PILL_TITLE__', '__PILL_SOURCE__'],
+                [e($citation['document_url']), e($domain), e($citation['document_title']), e($citation['source_name'] ?? $domain)],
+                $pillTemplate,
+            );
+        }, $html);
     }
 
     private function generateTitle(Conversation $conversation, string $firstMessage, SystemSettingsService $settings): void

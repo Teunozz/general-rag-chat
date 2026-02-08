@@ -11,6 +11,44 @@ marked.setOptions({
 window.Alpine = Alpine;
 window.marked = marked;
 
+function escapeAttr(str) {
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function extractDomain(url) {
+    try {
+        return new URL(url).hostname.replace(/^www\./, '');
+    } catch (e) {
+        return url;
+    }
+}
+
+function replaceCitationRefs(html, citations) {
+    if (!citations || citations.length === 0) return html;
+
+    const tpl = document.getElementById('citation-pill-tpl');
+    if (!tpl) return html;
+    const pillTemplate = tpl.innerHTML.trim();
+
+    return html.replace(/\[(\d+)\]/g, function (match, num) {
+        const n = parseInt(num, 10);
+        const citation = citations.find(function (c) { return c.number === n; });
+        if (!citation || !citation.document_url) return match;
+
+        const title = citation.document_title || 'Source ' + n;
+        const source = citation.source_name || extractDomain(citation.document_url);
+        return pillTemplate
+            .replace('__PILL_URL__', escapeAttr(citation.document_url))
+            .replace('__PILL_DOMAIN__', escapeHtml(extractDomain(citation.document_url)))
+            .replace('__PILL_TITLE__', escapeHtml(title))
+            .replace('__PILL_SOURCE__', escapeHtml(source));
+    });
+}
+
 Alpine.data('themeManager', () => ({
     darkMode: localStorage.getItem('theme') === 'dark' ||
         (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -105,6 +143,7 @@ Alpine.data('chatApp', () => ({
                             this.renderedContent = window.marked.parse(this.streamedContent);
                         } else if (data.type === 'citations') {
                             this.citations = data.citations;
+                            this.renderedContent = replaceCitationRefs(window.marked.parse(this.streamedContent), this.citations);
                         } else if (data.type === 'done') {
                             this.isStreaming = false;
                         }

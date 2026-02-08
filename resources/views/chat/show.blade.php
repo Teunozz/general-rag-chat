@@ -7,9 +7,9 @@
                 <div class="max-w-3xl mx-auto {{ $message->role === 'user' ? 'flex justify-end' : '' }}">
                     <div class="{{ $message->role === 'user' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800' }} rounded-lg px-4 py-3 max-w-2xl shadow-sm">
                         @if($message->role === 'user')
-                        <div class="prose prose-sm max-w-none text-white">{{ $message->content }}</div>
+                        <div class="prose prose-sm max-w-none text-white">{!! $renderedHtml[$message->id] !!}</div>
                         @else
-                        <div class="prose dark:prose-invert prose-sm max-w-none rendered-markdown">{!! \Illuminate\Support\Str::markdown($message->content) !!}</div>
+                        <div class="prose dark:prose-invert prose-sm max-w-none rendered-markdown">{!! $renderedHtml[$message->id] !!}</div>
                         @endif
                         @if($message->citations && count($message->citations) > 0)
                         <div class="mt-3" x-data="{ open: false }">
@@ -21,13 +21,10 @@
                                 @foreach($message->citations as $citation)
                                 <div class="text-xs bg-gray-50 dark:bg-gray-700/50 rounded p-2">
                                     <div class="font-medium text-gray-700 dark:text-gray-300">
-                                        [{{ $citation['number'] }}] {{ $citation['document_title'] }}
+                                        {{ $citation['document_title'] }}
                                     </div>
-                                    @if(!empty($citation['chunk_preview']))
-                                    <p class="mt-1 text-gray-500 dark:text-gray-400 line-clamp-3">{{ $citation['chunk_preview'] }}</p>
-                                    @endif
                                     @if($citation['document_url'])
-                                    <a href="{{ $citation['document_url'] }}" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline">View source</a>
+                                    <a href="{{ $citation['document_url'] }}" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline">{{ $citation['source_name'] ?? preg_replace('/^www\./', '', parse_url($citation['document_url'], PHP_URL_HOST)) }}</a>
                                     @endif
                                 </div>
                                 @endforeach
@@ -58,13 +55,10 @@
                                 <template x-for="citation in citations" :key="citation.number">
                                     <div class="text-xs bg-gray-50 dark:bg-gray-700/50 rounded p-2">
                                         <div class="font-medium text-gray-700 dark:text-gray-300">
-                                            [<span x-text="citation.number"></span>] <span x-text="citation.document_title"></span>
+                                            <span x-text="citation.document_title"></span>
                                         </div>
-                                        <template x-if="citation.chunk_preview">
-                                            <p class="mt-1 text-gray-500 dark:text-gray-400 line-clamp-3" x-text="citation.chunk_preview"></p>
-                                        </template>
                                         <template x-if="citation.document_url">
-                                            <a :href="citation.document_url" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline">View source</a>
+                                            <a :href="citation.document_url" target="_blank" rel="noopener" class="inline-block mt-1 text-primary hover:underline" x-text="citation.source_name"></a>
                                         </template>
                                     </div>
                                 </template>
@@ -92,4 +86,5 @@
         </div>
     </div>
 
+    <template id="citation-pill-tpl"><x-citation-pill url="__PILL_URL__" domain="__PILL_DOMAIN__" title="__PILL_TITLE__" source="__PILL_SOURCE__" /></template>
 </x-layouts.app>
