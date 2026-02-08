@@ -24,9 +24,7 @@ class SystemSettingsSeeder extends Seeder
 
             ['group' => 'chat', 'key' => 'context_chunk_count', 'value' => json_encode(100)],
             ['group' => 'chat', 'key' => 'temperature', 'value' => json_encode(0.25)],
-            ['group' => 'chat', 'key' => 'system_prompt', 'value' => json_encode('You are a helpful knowledge base assistant. Answer questions based ONLY on the provided context. Always cite your sources using numbered references like [1], [2], etc. If the context does not contain relevant information, say so honestly.')],
             ['group' => 'chat', 'key' => 'query_enrichment_enabled', 'value' => json_encode(false)],
-            ['group' => 'chat', 'key' => 'enrichment_prompt', 'value' => json_encode('Expand the following user query into a more detailed search query that captures the intent and related concepts. Return only the expanded query, nothing else.')],
             ['group' => 'chat', 'key' => 'context_window_size', 'value' => json_encode(2)],
             ['group' => 'chat', 'key' => 'full_doc_score_threshold', 'value' => json_encode(0.85)],
             ['group' => 'chat', 'key' => 'max_full_doc_characters', 'value' => json_encode(10000)],
