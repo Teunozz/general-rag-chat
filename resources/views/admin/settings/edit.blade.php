@@ -2,7 +2,7 @@
     <div class="max-w-4xl mx-auto px-4 py-8">
         <h1 class="text-2xl font-bold mb-6">System Settings</h1>
 
-        <div x-data="{ tab: 'branding' }" class="flex gap-6">
+        <div x-data="{ tab: '{{ $activeTab }}' }" class="flex gap-6">
             {{-- Tabs --}}
             <nav class="w-48 space-y-1">
                 @foreach(['branding', 'models', 'chat', 'recap', 'email'] as $section)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\SettingsTab;
 use App\Http\Controllers\Controller;
 use App\Jobs\ChunkAndEmbedJob;
 use App\Models\Document;
@@ -21,9 +22,12 @@ class SettingsController extends Controller
     ) {
     }
 
-    public function edit(): View
+    public function edit(Request $request): View
     {
+        $activeTab = SettingsTab::tryFrom($request->query('tab', '')) ?? SettingsTab::Branding;
+
         return view('admin.settings.edit', [
+            'activeTab' => $activeTab->value,
             'branding' => $this->settings->group('branding'),
             'llm' => $this->settings->group('llm'),
             'embedding' => $this->settings->group('embedding'),
@@ -49,7 +53,7 @@ class SettingsController extends Controller
             $this->settings->set('branding', $key, $value);
         }
 
-        return back()->with('success', 'Branding settings updated.');
+        return $this->redirectToTab(SettingsTab::Branding)->with('success', 'Branding settings updated.');
     }
 
     public function updateLlm(Request $request): RedirectResponse
@@ -63,7 +67,7 @@ class SettingsController extends Controller
             $this->settings->set('llm', $key, $value);
         }
 
-        return back()->with('success', 'LLM settings updated.');
+        return $this->redirectToTab(SettingsTab::Models)->with('success', 'LLM settings updated.');
     }
 
     public function updateEmbedding(Request $request): RedirectResponse
@@ -78,7 +82,7 @@ class SettingsController extends Controller
 
         // Check if dimensions changed
         if ($validated['dimensions'] !== $currentDimensions) {
-            return back()->withErrors(['dimensions' => 'Changing embedding dimensions is not supported in v1. The new model must use the same dimensions (' . $currentDimensions . ').']);
+            return $this->redirectToTab(SettingsTab::Models)->withErrors(['dimensions' => 'Changing embedding dimensions is not supported in v1. The new model must use the same dimensions (' . $currentDimensions . ').']);
         }
 
         $currentProvider = $this->settings->get('embedding', 'provider');
@@ -90,7 +94,7 @@ class SettingsController extends Controller
             // Check for active ingestion
             $processing = Source::where('status', 'processing')->exists();
             if ($processing) {
-                return back()->withErrors(['model' => 'Cannot change embedding model while sources are being processed.']);
+                return $this->redirectToTab(SettingsTab::Models)->withErrors(['model' => 'Cannot change embedding model while sources are being processed.']);
             }
         }
 
@@ -104,10 +108,10 @@ class SettingsController extends Controller
                 $source->documents->each(fn (Document $doc) => ChunkAndEmbedJob::dispatch($doc));
             });
 
-            return back()->with('success', 'Embedding settings updated. All sources queued for re-chunking.');
+            return $this->redirectToTab(SettingsTab::Models)->with('success', 'Embedding settings updated. All sources queued for re-chunking.');
         }
 
-        return back()->with('success', 'Embedding settings updated.');
+        return $this->redirectToTab(SettingsTab::Models)->with('success', 'Embedding settings updated.');
     }
 
     public function refreshModels(Request $request, ModelDiscoveryService $discovery): JsonResponse
@@ -140,7 +144,7 @@ class SettingsController extends Controller
             $this->settings->set('chat', $key, $value);
         }
 
-        return back()->with('success', 'Chat settings updated.');
+        return $this->redirectToTab(SettingsTab::Chat)->with('success', 'Chat settings updated.');
     }
 
     public function updateRecap(Request $request): RedirectResponse
@@ -164,7 +168,7 @@ class SettingsController extends Controller
             $this->settings->set('recap', $key, $value);
         }
 
-        return back()->with('success', 'Recap settings updated.');
+        return $this->redirectToTab(SettingsTab::Recap)->with('success', 'Recap settings updated.');
     }
 
     public function updateEmail(Request $request): RedirectResponse
@@ -175,7 +179,7 @@ class SettingsController extends Controller
 
         $this->settings->set('email', 'system_enabled', $request->boolean('system_enabled'));
 
-        return back()->with('success', 'Email settings updated.');
+        return $this->redirectToTab(SettingsTab::Email)->with('success', 'Email settings updated.');
     }
 
     public function testEmail(Request $request): RedirectResponse
@@ -186,9 +190,14 @@ class SettingsController extends Controller
                     ->subject('Test Email - Knowledge Base');
             });
 
-            return back()->with('success', 'Test email sent.');
+            return $this->redirectToTab(SettingsTab::Email)->with('success', 'Test email sent.');
         } catch (\Throwable $e) {
-            return back()->withErrors(['email' => 'Failed to send test email: ' . $e->getMessage()]);
+            return $this->redirectToTab(SettingsTab::Email)->withErrors(['email' => 'Failed to send test email: ' . $e->getMessage()]);
         }
+    }
+
+    private function redirectToTab(SettingsTab $tab): RedirectResponse
+    {
+        return redirect()->route('admin.settings.edit', ['tab' => $tab->value]);
     }
 }
