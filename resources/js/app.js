@@ -2,14 +2,18 @@ import './bootstrap';
 import Alpine from '@alpinejs/csp';
 import { marked } from 'marked';
 
-// Configure marked for safe rendering
-marked.setOptions({
-    breaks: true,
-    gfm: true,
-});
+marked.setOptions({ breaks: true, gfm: true });
 
 window.Alpine = Alpine;
-window.marked = marked;
+
+const SCROLL_TOP_MARGIN = 16;
+const SCROLL_LOCK_DELAY = 500;
+const MOBILE_BREAKPOINT = 768;
+const SOURCE_POLL_INTERVAL = 5000;
+
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').content;
+}
 
 function escapeAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
@@ -22,7 +26,7 @@ function escapeHtml(str) {
 function extractDomain(url) {
     try {
         return new URL(url).hostname.replace(/^www\./, '');
-    } catch (e) {
+    } catch {
         return url;
     }
 }
@@ -34,12 +38,11 @@ function replaceCitationRefs(html, citations) {
     if (!tpl) return html;
     const pillTemplate = tpl.innerHTML.trim();
 
-    return html.replace(/\[(\d+)\]/g, function (match, num) {
-        const n = parseInt(num, 10);
-        const citation = citations.find(function (c) { return c.number === n; });
+    return html.replace(/\[(\d+)\]/g, (match, num) => {
+        const citation = citations.find(c => c.number === parseInt(num, 10));
         if (!citation || !citation.document_url) return match;
 
-        const title = citation.document_title || 'Source ' + n;
+        const title = citation.document_title || 'Source ' + num;
         const source = citation.source_name || extractDomain(citation.document_url);
         return pillTemplate
             .replace('__PILL_URL__', escapeAttr(citation.document_url))
@@ -69,15 +72,18 @@ Alpine.data('chatApp', () => ({
     conversationId: null,
     storeRoute: '',
     panelOpen: false,
-    isNewConversation: false,
+    _scrollLockTarget: null,
 
     init() {
         this.conversationId = this.$el.dataset.conversationId || null;
         this.storeRoute = this.$el.dataset.storeRoute;
-        this.isNewConversation = !this.conversationId;
 
-        // On mobile always start closed (panel is an overlay); on desktop restore from localStorage
-        if (window.innerWidth < 768) {
+        const messagesContainer = document.getElementById('messages-container');
+        if (messagesContainer) {
+            messagesContainer.style.overflowAnchor = 'none';
+        }
+
+        if (window.innerWidth < MOBILE_BREAKPOINT) {
             this.panelOpen = false;
         } else {
             const stored = localStorage.getItem('chatPanelOpen');
@@ -87,6 +93,10 @@ Alpine.data('chatApp', () => ({
         this.$watch('renderedContent', (html) => {
             if (this.$refs.streamContent) {
                 this.$refs.streamContent.innerHTML = html || '<span class="text-gray-400">Thinking...</span>';
+            }
+            if (this._scrollLockTarget !== null) {
+                const c = document.getElementById('messages-container');
+                if (c) c.scrollTop = this._scrollLockTarget;
             }
         });
     },
@@ -99,56 +109,92 @@ Alpine.data('chatApp', () => ({
     async sendMessage() {
         if (!this.messageInput.trim() || this.isStreaming) return;
 
-        // Persist previous streamed response as a permanent DOM element
-        // before resetting state, so it survives when the streaming container is reused
         const container = document.getElementById('messages-container');
-        if (this.streamedContent && this.$refs.streamContent) {
-            const frozenDiv = document.createElement('div');
-            frozenDiv.className = 'max-w-3xl mx-auto';
-            frozenDiv.innerHTML = '<div class="bg-white dark:bg-gray-800 rounded-lg px-4 py-3 max-w-2xl shadow-sm">'
-                + '<div class="prose dark:prose-invert prose-sm max-w-none rendered-markdown">'
-                + this.$refs.streamContent.innerHTML + '</div></div>';
-            container.insertBefore(frozenDiv, container.lastElementChild);
-        }
+        this.clearPreviousStreamingSpacer(container);
+        this.freezePreviousResponse(container);
 
         const message = this.messageInput;
         this.messageInput = '';
+
+        const wasNew = await this.ensureConversation();
+        const savedScroll = container.scrollTop;
+        const userDiv = this.appendUserMessage(container, message);
+
         this.isStreaming = true;
         this.streamedContent = '';
         this.renderedContent = '';
         this.citations = [];
 
-        // Create conversation if needed
-        let wasNew = false;
-        if (!this.conversationId) {
-            wasNew = true;
-            const resp = await fetch(this.storeRoute, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({}),
-            });
-            const data = await resp.json();
-            this.conversationId = data.id;
-            window.history.replaceState({}, '', `/chat/${data.id}`);
-        }
+        await this.$nextTick();
+        this.addStreamingSpacer(container);
+        this.scrollToUserMessage(container, savedScroll, userDiv);
 
-        // Add user message to UI
+        await this.streamResponse(message, wasNew);
+    },
+
+    clearPreviousStreamingSpacer(container) {
+        const lastChild = container.lastElementChild;
+        if (lastChild) lastChild.style.minHeight = '';
+    },
+
+    freezePreviousResponse(container) {
+        if (!this.streamedContent || !this.$refs.streamContent) return;
+
+        const frozenDiv = document.createElement('div');
+        frozenDiv.className = 'max-w-3xl mx-auto';
+        frozenDiv.innerHTML =
+            '<div class="bg-white dark:bg-gray-800 rounded-lg px-4 py-3 max-w-2xl shadow-sm">' +
+            '<div class="prose dark:prose-invert prose-sm max-w-none rendered-markdown">' +
+            this.$refs.streamContent.innerHTML + '</div></div>';
+        container.insertBefore(frozenDiv, container.lastElementChild);
+    },
+
+    async ensureConversation() {
+        if (this.conversationId) return false;
+
+        const resp = await fetch(this.storeRoute, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json();
+        this.conversationId = data.id;
+        window.history.replaceState({}, '', `/chat/${data.id}`);
+        return true;
+    },
+
+    appendUserMessage(container, message) {
         const userDiv = document.createElement('div');
         userDiv.className = 'max-w-3xl mx-auto flex justify-end';
-        userDiv.innerHTML = `<div class="bg-primary text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm"><div class="prose prose-sm max-w-none text-white">${this.escapeHtml(message)}</div></div>`;
+        userDiv.innerHTML =
+            '<div class="bg-primary text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm">' +
+            '<div class="prose prose-sm max-w-none text-white">' +
+            escapeHtml(message) + '</div></div>';
         container.insertBefore(userDiv, container.lastElementChild);
+        return userDiv;
+    },
 
-        // Stream response
+    addStreamingSpacer(container) {
+        const streamingBox = container.lastElementChild;
+        if (streamingBox) {
+            streamingBox.style.minHeight = container.clientHeight + 'px';
+        }
+    },
+
+    scrollToUserMessage(container, savedScroll, userDiv) {
+        container.scrollTop = savedScroll;
+        const containerRect = container.getBoundingClientRect();
+        const userRect = userDiv.getBoundingClientRect();
+        const targetScroll = container.scrollTop + userRect.top - containerRect.top - SCROLL_TOP_MARGIN;
+        container.scrollTo({ top: targetScroll, behavior: 'smooth' });
+        setTimeout(() => { this._scrollLockTarget = targetScroll; }, SCROLL_LOCK_DELAY);
+    },
+
+    async streamResponse(message, wasNew) {
         try {
             const response = await fetch(`/chat/${this.conversationId}/stream`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
                 body: JSON.stringify({ message }),
             });
 
@@ -165,20 +211,20 @@ Alpine.data('chatApp', () => ({
                 buffer = lines.pop();
 
                 for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.slice(6));
-                        if (data.type === 'text') {
-                            this.streamedContent += data.content;
-                            this.renderedContent = window.marked.parse(this.streamedContent);
-                        } else if (data.type === 'citations') {
-                            this.citations = data.citations;
-                            this.renderedContent = replaceCitationRefs(window.marked.parse(this.streamedContent), this.citations);
-                        } else if (data.type === 'done') {
-                            this.isStreaming = false;
-                            // Reload page for new conversations so the sidebar shows the auto-generated title
-                            if (wasNew) {
-                                window.location.href = `/chat/${this.conversationId}`;
-                            }
+                    if (!line.startsWith('data: ')) continue;
+
+                    const data = JSON.parse(line.slice(6));
+                    if (data.type === 'text') {
+                        this.streamedContent += data.content;
+                        this.renderedContent = marked.parse(this.streamedContent);
+                    } else if (data.type === 'citations') {
+                        this.citations = data.citations;
+                        this.renderedContent = replaceCitationRefs(marked.parse(this.streamedContent), this.citations);
+                    } else if (data.type === 'done') {
+                        this.isStreaming = false;
+                        this._scrollLockTarget = null;
+                        if (wasNew) {
+                            window.location.href = `/chat/${this.conversationId}`;
                         }
                     }
                 }
@@ -188,16 +234,8 @@ Alpine.data('chatApp', () => ({
             this.streamedContent = 'An error occurred while streaming the response.';
             this.renderedContent = '<p class="text-red-500">An error occurred while streaming the response.</p>';
             this.isStreaming = false;
+            this._scrollLockTarget = null;
         }
-
-        // Scroll to bottom
-        container.scrollTop = container.scrollHeight;
-    },
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     },
 }));
 
@@ -206,12 +244,9 @@ Alpine.data('sourcesList', () => ({
     pollInterval: null,
 
     init() {
-        const hasProcessing = this.$el.dataset.hasProcessing === 'true';
-        if (hasProcessing) {
+        if (this.$el.dataset.hasProcessing === 'true') {
             this.isPolling = true;
-            this.pollInterval = setInterval(() => {
-                window.location.reload();
-            }, 5000);
+            this.pollInterval = setInterval(() => window.location.reload(), SOURCE_POLL_INTERVAL);
         }
     },
 
@@ -235,7 +270,6 @@ Alpine.data('modelPicker', () => ({
         this.model = this.$el.dataset.currentModel || '';
 
         this.fetchModels();
-
         this.$watch('provider', () => {
             this.model = '';
             this.fetchModels();
@@ -247,21 +281,16 @@ Alpine.data('modelPicker', () => ({
         try {
             const response = await fetch(this.refreshUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
                 body: JSON.stringify({ provider: this.provider, type: this.type }),
             });
             const data = await response.json();
             this.models = data.models || [];
 
-            // If current model not in fetched list, add it so it stays selectable
             if (this.model && !this.models.find(m => m.id === this.model)) {
                 this.models.unshift({ id: this.model, name: this.model });
             }
 
-            // If no model selected, pick the first available
             if (!this.model && this.models.length > 0) {
                 this.model = this.models[0].id;
             }

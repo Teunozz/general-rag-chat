@@ -1,5 +1,5 @@
 <x-layouts.app :title="$conversation?->title ?? 'Chat'">
-    <div class="flex h-full" x-data="chatApp" data-conversation-id="{{ $conversation?->id }}" data-store-route="{{ route('conversations.store') }}">
+    <div class="flex h-full overflow-hidden" x-data="chatApp" data-conversation-id="{{ $conversation?->id }}" data-store-route="{{ route('conversations.store') }}">
         {{-- Conversation panel (left) --}}
         <aside x-show="panelOpen" x-cloak
             class="w-72 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800 fixed inset-y-0 left-0 z-50 md:relative md:inset-auto md:z-auto">
@@ -39,7 +39,7 @@
         <div x-show="panelOpen" x-cloak @click="togglePanel()" class="md:hidden fixed inset-0 z-40 bg-black/50"></div>
 
         {{-- Chat area (right) --}}
-        <div class="flex flex-col flex-1 min-w-0">
+        <div class="flex flex-col flex-1 min-w-0 min-h-0">
             {{-- Chat header with panel toggle --}}
             <div class="flex items-center h-14 px-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
                 <button @click="togglePanel()" class="p-1 mr-3 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Toggle conversations">
