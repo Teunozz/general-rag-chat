@@ -29,7 +29,7 @@ Route::middleware(['auth', 'force.password.change'])->group(function (): void {
     Route::post('/chat/search', [ChatController::class, 'search'])->name('chat.search');
 
     // Conversations
-    Route::get('/conversations', [ConversationController::class, 'index'])->name('conversations.index');
+    Route::get('/conversations', fn () => redirect()->route('chat.index'))->name('conversations.index');
     Route::post('/conversations', [ConversationController::class, 'store'])->name('conversations.store');
     Route::put('/conversations/{conversation}', [ConversationController::class, 'update'])->name('conversations.update');
     Route::delete('/conversations/{conversation}', [ConversationController::class, 'destroy'])->name('conversations.destroy');

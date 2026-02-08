@@ -6,18 +6,12 @@ use App\Models\Conversation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class ConversationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(): RedirectResponse
     {
-        $conversations = $request->user()
-            ->conversations()
-            ->orderByDesc('updated_at')
-            ->paginate(20);
-
-        return view('conversations.index', ['conversations' => $conversations]);
+        return redirect()->route('chat.index');
     }
 
     public function store(Request $request): JsonResponse
@@ -57,6 +51,6 @@ class ConversationController extends Controller
 
         $conversation->delete();
 
-        return redirect()->route('conversations.index')->with('success', 'Conversation deleted.');
+        return redirect()->route('chat.index')->with('success', 'Conversation deleted.');
     }
 }

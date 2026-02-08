@@ -52,6 +52,31 @@ test('guest cannot access chat', function (): void {
     $response->assertRedirect(route('login'));
 });
 
+test('chat index displays conversation panel', function (): void {
+    $user = User::factory()->create();
+    $user->conversations()->create(['title' => 'First Conversation']);
+    $user->conversations()->create(['title' => 'Second Conversation']);
+
+    $response = $this->actingAs($user)->get(route('chat.index'));
+
+    $response->assertOk();
+    $response->assertSee('First Conversation');
+    $response->assertSee('Second Conversation');
+    $response->assertSee('Conversations');
+});
+
+test('chat show highlights active conversation', function (): void {
+    $user = User::factory()->create();
+    $active = $user->conversations()->create(['title' => 'Active Chat']);
+    $other = $user->conversations()->create(['title' => 'Other Chat']);
+
+    $response = $this->actingAs($user)->get(route('chat.show', $active));
+
+    $response->assertOk();
+    $response->assertSee('Active Chat');
+    $response->assertSee('Other Chat');
+});
+
 test('stream requires message', function (): void {
     $user = User::factory()->create();
     $conversation = $user->conversations()->create(['title' => 'Test']);

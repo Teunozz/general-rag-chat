@@ -6,14 +6,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('index shows user conversations', function (): void {
+test('index redirects to chat', function (): void {
     $user = User::factory()->create();
-    $user->conversations()->create(['title' => 'My Conversation']);
 
     $response = $this->actingAs($user)->get(route('conversations.index'));
 
-    $response->assertOk();
-    $response->assertSee('My Conversation');
+    $response->assertRedirect(route('chat.index'));
 });
 
 test('store creates conversation', function (): void {
@@ -65,7 +63,7 @@ test('delete conversation', function (): void {
 
     $response = $this->actingAs($user)->delete(route('conversations.destroy', $conversation));
 
-    $response->assertRedirect(route('conversations.index'));
+    $response->assertRedirect(route('chat.index'));
     $this->assertDatabaseMissing('conversations', ['id' => $conversation->id]);
 });
 

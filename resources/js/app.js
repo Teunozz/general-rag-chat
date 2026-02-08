@@ -68,16 +68,32 @@ Alpine.data('chatApp', () => ({
     citations: [],
     conversationId: null,
     storeRoute: '',
+    panelOpen: false,
+    isNewConversation: false,
 
     init() {
         this.conversationId = this.$el.dataset.conversationId || null;
         this.storeRoute = this.$el.dataset.storeRoute;
+        this.isNewConversation = !this.conversationId;
+
+        // On mobile always start closed (panel is an overlay); on desktop restore from localStorage
+        if (window.innerWidth < 768) {
+            this.panelOpen = false;
+        } else {
+            const stored = localStorage.getItem('chatPanelOpen');
+            this.panelOpen = stored !== null ? stored === 'true' : true;
+        }
 
         this.$watch('renderedContent', (html) => {
             if (this.$refs.streamContent) {
                 this.$refs.streamContent.innerHTML = html || '<span class="text-gray-400">Thinking...</span>';
             }
         });
+    },
+
+    togglePanel() {
+        this.panelOpen = !this.panelOpen;
+        localStorage.setItem('chatPanelOpen', this.panelOpen);
     },
 
     async sendMessage() {
@@ -91,7 +107,9 @@ Alpine.data('chatApp', () => ({
         this.citations = [];
 
         // Create conversation if needed
+        let wasNew = false;
         if (!this.conversationId) {
+            wasNew = true;
             const resp = await fetch(this.storeRoute, {
                 method: 'POST',
                 headers: {
@@ -146,6 +164,10 @@ Alpine.data('chatApp', () => ({
                             this.renderedContent = replaceCitationRefs(window.marked.parse(this.streamedContent), this.citations);
                         } else if (data.type === 'done') {
                             this.isStreaming = false;
+                            // Reload page for new conversations so the sidebar shows the auto-generated title
+                            if (wasNew) {
+                                window.location.href = `/chat/${this.conversationId}`;
+                            }
                         }
                     }
                 }
