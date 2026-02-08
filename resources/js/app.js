@@ -99,6 +99,18 @@ Alpine.data('chatApp', () => ({
     async sendMessage() {
         if (!this.messageInput.trim() || this.isStreaming) return;
 
+        // Persist previous streamed response as a permanent DOM element
+        // before resetting state, so it survives when the streaming container is reused
+        const container = document.getElementById('messages-container');
+        if (this.streamedContent && this.$refs.streamContent) {
+            const frozenDiv = document.createElement('div');
+            frozenDiv.className = 'max-w-3xl mx-auto';
+            frozenDiv.innerHTML = '<div class="bg-white dark:bg-gray-800 rounded-lg px-4 py-3 max-w-2xl shadow-sm">'
+                + '<div class="prose dark:prose-invert prose-sm max-w-none rendered-markdown">'
+                + this.$refs.streamContent.innerHTML + '</div></div>';
+            container.insertBefore(frozenDiv, container.lastElementChild);
+        }
+
         const message = this.messageInput;
         this.messageInput = '';
         this.isStreaming = true;
@@ -124,7 +136,6 @@ Alpine.data('chatApp', () => ({
         }
 
         // Add user message to UI
-        const container = document.getElementById('messages-container');
         const userDiv = document.createElement('div');
         userDiv.className = 'max-w-3xl mx-auto flex justify-end';
         userDiv.innerHTML = `<div class="bg-primary text-white rounded-lg px-4 py-3 max-w-2xl shadow-sm"><div class="prose prose-sm max-w-none text-white">${this.escapeHtml(message)}</div></div>`;
