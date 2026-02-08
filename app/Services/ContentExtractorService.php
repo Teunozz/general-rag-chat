@@ -84,6 +84,7 @@ class ContentExtractorService
     private function parseDateFromJsonLd(string $json): ?Carbon
     {
         try {
+            $json = preg_replace('/\r\n|\r|\n/', ' ', $json);
             $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             return null;

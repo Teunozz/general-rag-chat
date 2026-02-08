@@ -5,6 +5,10 @@ namespace App\Spiders;
 use App\Services\ContentExtractorService;
 use App\Spiders\Middleware\SameDomainMiddleware;
 use App\Spiders\Processors\PersistDocumentProcessor;
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
+use RoachPHP\Downloader\Middleware\HttpErrorMiddleware;
+use RoachPHP\Downloader\Middleware\RequestDeduplicationMiddleware;
 use RoachPHP\Http\Request;
 use RoachPHP\Http\Response;
 use RoachPHP\Spider\BasicSpider;
@@ -17,12 +21,18 @@ class WebsiteSpider extends BasicSpider
     public array $spiderMiddleware = [];
 
     public array $downloaderMiddleware = [
+        RequestDeduplicationMiddleware::class,
+        HttpErrorMiddleware::class,
         SameDomainMiddleware::class,
     ];
 
     public array $itemProcessors = [
         PersistDocumentProcessor::class,
     ];
+
+    public int $concurrency = 2;
+
+    public int $requestDelay = 2;
 
     private const array DEFAULT_ARTICLE_TYPES = [
         'Article',
@@ -58,15 +68,24 @@ class WebsiteSpider extends BasicSpider
             return;
         }
 
+        $baseUri = new Uri($response->getRequest()->getUri());
         $links = $response->filter('a[href]');
         foreach ($links as $link) {
             /** @var \DOMElement $link */
             $href = $link->getAttribute('href');
-            if ($href && ! str_starts_with($href, '#') && ! str_starts_with($href, 'javascript:')) {
-                $request = new Request('GET', $href, $this->parse(...));
-                $request = $request->withMeta('depth', $currentDepth + 1);
-                yield ParseResult::fromValue($request);
+            if (! $href || str_starts_with($href, '#') || str_starts_with($href, 'javascript:') || str_starts_with($href, 'mailto:')) {
+                continue;
             }
+
+            try {
+                $resolvedUri = (string) UriResolver::resolve($baseUri, new Uri($href));
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $request = new Request('GET', $resolvedUri, $this->parse(...));
+            $request = $request->withMeta('depth', $currentDepth + 1);
+            yield ParseResult::fromValue($request);
         }
     }
 
@@ -86,6 +105,9 @@ class WebsiteSpider extends BasicSpider
         }
 
         foreach ($matches[1] as $jsonString) {
+            // SpaceDaily (and other sites) sometimes have literal newlines inside
+            // JSON string values, which is invalid JSON. Sanitize before parsing.
+            $jsonString = preg_replace('/\r\n|\r|\n/', ' ', $jsonString);
             $jsonLd = json_decode($jsonString, true);
             if (! $jsonLd) {
                 continue;

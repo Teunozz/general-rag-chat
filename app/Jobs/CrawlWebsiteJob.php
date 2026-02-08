@@ -12,6 +12,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RoachPHP\Downloader\Middleware\HttpErrorMiddleware;
+use RoachPHP\Downloader\Middleware\RequestDeduplicationMiddleware;
 use RoachPHP\Roach;
 use RoachPHP\Spider\Configuration\Overrides;
 
@@ -40,6 +42,8 @@ class CrawlWebsiteJob implements ShouldQueue
             $overrides = new Overrides(
                 startUrls: [$this->source->url],
                 downloaderMiddleware: [ // @phpstan-ignore argument.type (Roach PHP accepts [class, options] tuples)
+                    RequestDeduplicationMiddleware::class,
+                    HttpErrorMiddleware::class,
                     [SameDomainMiddleware::class, ['domain' => $domain]],
                 ],
                 itemProcessors: [ // @phpstan-ignore argument.type
