@@ -14,10 +14,6 @@ return [
     |
     */
 
-    'openai' => [
-        'api_key' => env('OPENAI_API_KEY'),
-    ],
-
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

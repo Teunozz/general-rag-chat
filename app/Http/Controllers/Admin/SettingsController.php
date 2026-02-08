@@ -110,9 +110,13 @@ class SettingsController extends Controller
         $provider = $request->input('provider', 'openai');
         $type = $request->input('type', 'text');
 
-        $models = $discovery->fetchModels($provider, $type);
+        $models = $discovery->fetchModels($provider, $type, fresh: $request->boolean('fresh'));
 
-        return response()->json(['models' => $models]);
+        return response()->json([
+            'models' => $models,
+            'has_key' => $discovery->hasApiKey($provider),
+            'env_key' => $discovery->envKeyName($provider),
+        ]);
     }
 
     public function updateChat(Request $request): RedirectResponse

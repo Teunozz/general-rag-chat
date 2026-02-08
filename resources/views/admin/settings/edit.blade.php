@@ -39,13 +39,7 @@
                 {{-- Chat --}}
                 <div x-show="tab === 'chat'" x-cloak class="space-y-6">
                     {{-- Chat Settings (includes LLM provider/model) --}}
-                    <form method="POST" action="{{ route('admin.settings.chat') }}"
-                        x-data="modelPicker"
-                        data-refresh-url="{{ route('admin.settings.models.refresh') }}"
-                        data-current-provider="{{ $llm['provider'] ?? 'openai' }}"
-                        data-current-model="{{ $llm['model'] ?? '' }}"
-                        data-type="text"
-                        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <form method="POST" action="{{ route('admin.settings.chat') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf @method('PUT')
                         <h2 class="text-lg font-semibold mb-4">Chat Settings</h2>
                         <div class="space-y-4">
@@ -54,25 +48,11 @@
                                 <textarea name="system_prompt" rows="10" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['system_prompt'] ?? $chatDefaults['system_prompt'] }}</textarea>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{context}</code> to control where retrieved context is inserted. If omitted, context is appended automatically.</p>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Provider</label>
-                                    <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                        <option value="openai">OpenAI</option>
-                                        <option value="anthropic">Anthropic</option>
-                                        <option value="gemini">Gemini</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Model</label>
-                                    <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                        <template x-for="m in models" :key="m.id">
-                                            <option :value="m.id" x-text="m.name"></option>
-                                        </template>
-                                    </select>
-                                    <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
-                                </div>
-                            </div>
+                            <x-model-picker
+                                :current-provider="$llm['provider'] ?? 'openai'"
+                                :current-model="$llm['model'] ?? ''"
+                                type="text"
+                            />
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium mb-1">Context Chunk Count</label>
@@ -113,31 +93,16 @@
                     </form>
 
                     {{-- Embedding --}}
-                    <form method="POST" action="{{ route('admin.settings.embedding') }}"
-                        x-data="modelPicker"
-                        data-refresh-url="{{ route('admin.settings.models.refresh') }}"
-                        data-current-provider="{{ $embedding['provider'] ?? 'openai' }}"
-                        data-current-model="{{ $embedding['model'] ?? '' }}"
-                        data-type="embedding"
-                        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <form method="POST" action="{{ route('admin.settings.embedding') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf @method('PUT')
                         <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Provider</label>
-                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <option value="openai">OpenAI</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Model</label>
-                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <template x-for="m in models" :key="m.id">
-                                        <option :value="m.id" x-text="m.name"></option>
-                                    </template>
-                                </select>
-                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
-                            </div>
+                            <x-model-picker
+                                :providers="['openai' => 'OpenAI']"
+                                :current-provider="$embedding['provider'] ?? 'openai'"
+                                :current-model="$embedding['model'] ?? ''"
+                                type="embedding"
+                            />
                             <div>
                                 <label class="block text-sm font-medium mb-1">Dimensions</label>
                                 <input type="number" name="dimensions" value="{{ $embedding['dimensions'] ?? 1536 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
@@ -148,13 +113,7 @@
                 </div>
 
                 {{-- Recap --}}
-                <form x-show="tab === 'recap'" x-cloak method="POST" action="{{ route('admin.settings.recap') }}"
-                    x-data="modelPicker"
-                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
-                    data-current-provider="{{ $recap['provider'] ?? $recapDefaults['provider'] }}"
-                    data-current-model="{{ $recap['model'] ?? $recapDefaults['model'] }}"
-                    data-type="text"
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <form x-show="tab === 'recap'" x-cloak method="POST" action="{{ route('admin.settings.recap') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                     @csrf @method('PUT')
                     <h2 class="text-lg font-semibold mb-4">Recap Settings</h2>
                     <div class="space-y-4">
@@ -163,25 +122,11 @@
                             <textarea name="prompt" rows="8" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $recap['prompt'] ?? $recapDefaults['prompt'] }}</textarea>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for the AI when generating recap summaries. Leave empty to use the default prompt.</p>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Provider</label>
-                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <option value="openai">OpenAI</option>
-                                    <option value="anthropic">Anthropic</option>
-                                    <option value="gemini">Gemini</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Model</label>
-                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <template x-for="m in models" :key="m.id">
-                                        <option :value="m.id" x-text="m.name"></option>
-                                    </template>
-                                </select>
-                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
-                            </div>
-                        </div>
+                        <x-model-picker
+                            :current-provider="$recap['provider'] ?? $recapDefaults['provider']"
+                            :current-model="$recap['model'] ?? $recapDefaults['model']"
+                            type="text"
+                        />
                         <p class="text-xs text-gray-500 dark:text-gray-400">Provider and model default to the global LLM settings if not changed here.</p>
 
                         @foreach(['daily', 'weekly', 'monthly'] as $type)

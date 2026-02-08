@@ -263,6 +263,8 @@ Alpine.data('modelPicker', () => ({
     refreshUrl: '',
     type: 'text',
     pendingModel: '',
+    missingKey: false,
+    envKeyName: '',
 
     init() {
         this.refreshUrl = this.$el.dataset.refreshUrl;
@@ -279,17 +281,28 @@ Alpine.data('modelPicker', () => ({
         });
     },
 
-    async fetchModels() {
+    refreshModels() {
+        this.fetchModels(true);
+    },
+
+    async fetchModels(fresh = false) {
         this.loading = true;
+        this.missingKey = false;
+        this.envKeyName = '';
         const targetModel = this.pendingModel || this.model;
         try {
             const response = await fetch(this.refreshUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
-                body: JSON.stringify({ provider: this.provider, type: this.type }),
+                body: JSON.stringify({ provider: this.provider, type: this.type, fresh }),
             });
             const data = await response.json();
             this.models = data.models || [];
+
+            if (data.has_key === false) {
+                this.missingKey = true;
+                this.envKeyName = data.env_key || '';
+            }
 
             if (targetModel && !this.models.find(m => m.id === targetModel)) {
                 this.models.unshift({ id: targetModel, name: targetModel });
