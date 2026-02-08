@@ -59,42 +59,50 @@ class RagContextBuilder
         $maxTokens = (int) ($chatSettings['max_context_tokens'] ?? 16000);
         $budgetedChunks = $this->enforceTokenBudget($expandedChunks, $maxTokens);
 
-        // Build citations and formatted context
+        // Group chunks by document for document-level citations
+        $groupedByDocument = $budgetedChunks->groupBy('document_id');
+
         $citations = [];
         $contextParts = [];
         $totalTokens = 0;
+        $chunkCount = 0;
+        $number = 0;
 
-        foreach ($budgetedChunks as $i => $chunk) {
-            $number = $i + 1;
-            $document = $chunk->document;
+        foreach ($groupedByDocument as $chunks) {
+            $number++;
+            $firstChunk = $chunks->first();
+            $document = $firstChunk->document;
             $source = $document->source;
-
             $publishedAt = $document->published_at?->format('Y-m-d');
 
             $citations[] = [
                 'number' => $number,
-                'chunk_id' => $chunk->id,
                 'document_id' => $document->id,
                 'document_title' => $document->title,
                 'document_url' => $document->url,
                 'source_name' => $source->name,
                 'published_at' => $publishedAt,
-                'snippet' => mb_substr((string) $chunk->content, 0, 200),
             ];
 
-            $header = "[{$number}]";
+            $header = "[{$number}] {$document->title}";
             if ($publishedAt !== null) {
                 $header .= " (Published: {$publishedAt})";
             }
-            $contextParts[] = "{$header} {$chunk->content}";
-            $totalTokens += $chunk->token_count;
+
+            $chunkTexts = $chunks->map(fn ($chunk) => (string) $chunk->content)->implode("\n\n");
+            $contextParts[] = "{$header}\n{$chunkTexts}";
+
+            foreach ($chunks as $chunk) {
+                $totalTokens += $chunk->token_count;
+                $chunkCount++;
+            }
         }
 
         return new RagContext(
             formattedChunks: implode("\n\n", $contextParts),
             citations: $citations,
             totalTokens: $totalTokens,
-            chunkCount: count($budgetedChunks),
+            chunkCount: $chunkCount,
             enrichedQuery: $enrichmentResult?->enrichedQuery,
             enrichmentResult: $enrichmentResult,
         );
