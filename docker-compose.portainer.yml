@@ -1,0 +1,164 @@
+# Portainer Stack for Synology NAS (amd64) deployment
+#
+# Prerequisites:
+#   - Portainer running on Synology NAS
+#   - Docker Hub account for hosting the image
+#
+# Step 1: Build & push image (from Mac)
+#
+#   docker buildx build --platform linux/amd64 \
+#     -t <dockerhub-user>/rag-backend:latest --load .
+#   docker push <dockerhub-user>/rag-backend:latest
+#
+# Step 2: Create stack in Portainer
+#
+#   Portainer → Stacks → Add Stack → Web editor → paste this file.
+#   Scroll down to "Environment variables" and add all variables from
+#   .env.portainer.example. Required: DOCKER_IMAGE, APP_KEY, DB_PASSWORD,
+#   CIPHERSWEET_KEY, and at least one LLM API key.
+#
+# Step 3: Deploy & initialize
+#
+#   After the stack is running, open the app container console in Portainer
+#   (Containers → knowledge-base-app-1 → Console → /bin/sh) and run:
+#
+#     php artisan migrate --seed
+#     php artisan user:create-admin
+#
+# Updating the app:
+#
+#   Rebuild and push the image (step 1), then in Portainer:
+#   Stacks → knowledge-base → Update → "Re-pull image and redeploy"
+#
+# Troubleshooting:
+#
+#   Portainer only shows "Unable to deploy stack" without details.
+#   SSH into the NAS and check container logs:
+#
+#     docker logs knowledge-base-app-1
+#     docker logs knowledge-base-postgres-1
+#
+#   Common issues:
+#   - Port conflict: Change APP_PORT (default 8000) to an unused port.
+#     Synology DSM uses many ports — check with: netstat -tlnp | grep 8000
+#   - Missing env vars: APP_KEY and DB_PASSWORD have no defaults and will
+#     cause the app to crash silently on startup.
+
+x-app-env: &app-env
+  APP_NAME: ${APP_NAME:-My Knowledge Base}
+  APP_ENV: production
+  APP_KEY: ${APP_KEY}
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:-http://localhost:8000}
+  LOG_CHANNEL: stack
+  LOG_STACK: single
+  LOG_LEVEL: warning
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: knowledge_base
+  DB_USERNAME: app
+  DB_PASSWORD: ${DB_PASSWORD}
+  SESSION_DRIVER: database
+  SESSION_LIFETIME: "120"
+  QUEUE_CONNECTION: redis
+  CACHE_STORE: redis
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PASSWORD: "null"
+  REDIS_PORT: "6379"
+  CIPHERSWEET_KEY: ${CIPHERSWEET_KEY}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-587}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@example.com}
+  MAIL_FROM_NAME: ${APP_NAME:-My Knowledge Base}
+  VITE_APP_NAME: ${APP_NAME:-My Knowledge Base}
+
+services:
+  app:
+    image: ${DOCKER_IMAGE:-knowledge-base-rag:latest}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  worker:
+    image: ${DOCKER_IMAGE:-knowledge-base-rag:latest}
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  scheduler:
+    image: ${DOCKER_IMAGE:-knowledge-base-rag:latest}
+    command: >
+      sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: knowledge_base
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d knowledge_base"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

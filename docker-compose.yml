@@ -1,171 +1,105 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: rag-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-raguser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragpass}
-      POSTGRES_DB: ${POSTGRES_DB:-ragdb}
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - .:/var/www/html
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  postgres:
+    image: pgvector/pgvector:pg17
     ports:
       - "5432:5432"
+    environment:
+      POSTGRES_DB: knowledge_base
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raguser} -d ${POSTGRES_DB:-ragdb}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U app -d knowledge_base"]
+      interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
-  # Redis for Celery broker and caching
+  postgres-test:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: knowledge_base_test
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d knowledge_base_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
   redis:
-    image: redis:7-alpine
-    container_name: rag-redis
+    image: redis:alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
-  # Qdrant Vector Database
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: rag-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    environment:
-      QDRANT__SERVICE__GRPC_PORT: 6334
-
-  # FastAPI Backend
-  backend:
+  worker:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: rag-backend
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-raguser}:${POSTGRES_PASSWORD:-ragpass}@postgres:5432/${POSTGRES_DB:-ragdb}
-      - REDIS_URL=redis://redis:6379/0
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
-      # SMTP Email Settings
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-RAG System}
-      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
-      - SMTP_USE_SSL=${SMTP_USE_SSL:-false}
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
     volumes:
-      - ./backend:/app
-      - uploaded_documents:/app/uploads
+      - .:/var/www/html
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app-network
 
-  # Celery Worker
-  celery-worker:
+  scheduler:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: rag-celery-worker
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-raguser}:${POSTGRES_PASSWORD:-ragpass}@postgres:5432/${POSTGRES_DB:-ragdb}
-      - REDIS_URL=redis://redis:6379/0
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
-      # SMTP Email Settings
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-RAG System}
-      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
-      - SMTP_USE_SSL=${SMTP_USE_SSL:-false}
+    command: >
+      sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     volumes:
-      - ./backend:/app
-      - uploaded_documents:/app/uploads
+      - .:/var/www/html
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      qdrant:
-        condition: service_started
-    command: celery -A app.tasks.celery_app worker --loglevel=info
-
-  # Celery Beat (Scheduler)
-  celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: rag-celery-beat
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-raguser}:${POSTGRES_PASSWORD:-ragpass}@postgres:5432/${POSTGRES_DB:-ragdb}
-      - REDIS_URL=redis://redis:6379/0
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - celery-worker
-    command: celery -A app.tasks.celery_app beat --loglevel=info
-
-  # Next.js Frontend
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: rag-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXTAUTH_URL=http://localhost:3000
-      - BACKEND_URL=http://backend:8000
-      - WATCHPACK_POLLING=true
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    depends_on:
-      - backend
+    networks:
+      - app-network
 
 volumes:
-  postgres_data:
-  redis_data:
-  qdrant_data:
-  uploaded_documents:
-  frontend_node_modules:
+  postgres-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge
