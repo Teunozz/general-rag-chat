@@ -13,7 +13,6 @@ return new class () extends Migration {
             $table->string('role', 20);
             $table->text('content');
             $table->json('citations')->nullable();
-            $table->boolean('is_summary')->default(false);
             $table->timestamps();
 
             $table->index(['conversation_id', 'created_at']);

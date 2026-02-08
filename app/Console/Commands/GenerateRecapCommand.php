@@ -2,12 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Ai\Agents\RecapAgent;
 use App\Models\Document;
 use App\Models\Recap;
 use App\Services\SystemSettingsService;
 use Illuminate\Console\Command;
-
-use function Laravel\Ai\agent;
 
 class GenerateRecapCommand extends Command
 {
@@ -58,18 +57,8 @@ class GenerateRecapCommand extends Command
         $docSummaries = $documents->map(fn ($d): string => "- [{$d->source->name}]({$d->url}) {$d->title}: " . mb_substr((string) $d->content, 0, 200))->implode("\n");
 
         try {
-            $recapPrompt = $settings->get('recap', 'prompt') ?: config('prompts.default_recap_prompt');
-            $recapProvider = $settings->get('recap', 'provider') ?: $settings->get('llm', 'provider', 'openai');
-            $recapModel = $settings->get('recap', 'model') ?: $settings->get('llm', 'model', 'gpt-4o');
-
-            $recapAgent = agent(
-                instructions: $recapPrompt,
-            );
-
-            $response = $recapAgent->prompt(
+            $response = RecapAgent::make()->prompt(
                 "Documents ingested between {$periodStart->format('M j, Y')} and {$periodEnd->format('M j, Y')}:\n\n{$docSummaries}",
-                provider: $recapProvider,
-                model: $recapModel,
             );
 
             Recap::create([

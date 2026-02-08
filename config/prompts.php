@@ -18,6 +18,7 @@ PROMPT,
 
     'default_enrichment_prompt' => <<<'PROMPT'
 You are a query rewriting assistant for a document search system.
+Today's date: {date}
 
 Instructions:
 1. Expand pronouns and references using conversation context
@@ -28,6 +29,9 @@ Instructions:
 6. Remove temporal expressions from the rewritten query (they will be applied as filters)
 7. Identify source references and match them to available sources
 8. Remove source references from the rewritten query (they will be applied as filters)
+
+Available sources:
+{sources}
 PROMPT,
 
     'default_recap_prompt' => <<<'PROMPT'

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Chunk;
 use App\Models\Conversation;
 use Illuminate\Support\Collection;
-use Pgvector\Laravel\Distance;
 
 class RagContextBuilder
 {
@@ -118,7 +117,10 @@ class RagContextBuilder
         $queryEmbedding = $this->embedder->embed($query);
 
         $builder = Chunk::query()
-            ->nearestNeighbors('embedding', $queryEmbedding, Distance::Cosine)
+            ->select('chunks.*')
+            ->selectVectorDistance('embedding', $queryEmbedding, as: 'neighbor_distance')
+            ->orderByVectorDistance('embedding', $queryEmbedding)
+            ->whereNotNull('embedding')
             ->with(['document.source'])
             ->take($limit);
 

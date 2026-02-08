@@ -2,96 +2,41 @@
 
 namespace App\Services;
 
+use App\Ai\Agents\QueryEnrichmentAgent;
 use App\Models\Conversation;
 use App\Models\Source;
 use Carbon\CarbonImmutable;
 
-use function Laravel\Ai\agent;
-
 class QueryEnrichmentService
 {
-    public function __construct(
-        private readonly SystemSettingsService $settings,
-    ) {
-    }
-
     /**
      * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     public function enrich(string $query, array $conversationHistory = []): ?EnrichmentResult
     {
         try {
-            $chatSettings = $this->settings->group('chat');
-            $enrichmentPrompt = $chatSettings['enrichment_prompt'] ?? '';
-            $instructions = $this->buildInstructions($enrichmentPrompt);
-
             $userPrompt = $this->buildUserPrompt($query, $conversationHistory);
 
-            $response = agent(instructions: $instructions)->prompt(
-                $userPrompt,
-                provider: $this->settings->get('llm', 'provider', 'openai'),
-                model: $this->settings->get('llm', 'model', 'gpt-4o'),
-            );
+            $response = QueryEnrichmentAgent::make()->prompt($userPrompt);
 
-            return $this->parseResponse($response->text, $query);
+            $enrichedQuery = $response['enriched_query'] ?? null;
+
+            if (empty($enrichedQuery)) {
+                return null;
+            }
+
+            $dateFilter = $this->extractDateFilter($response['date_filter'] ?? null);
+            $sourceIds = $this->extractSourceIds($response['source_ids'] ?? null);
+
+            return new EnrichmentResult(
+                originalQuery: $query,
+                enrichedQuery: $enrichedQuery,
+                dateFilter: $dateFilter,
+                sourceIds: $sourceIds,
+            );
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    /**
-     * @return array<int, array{id: int, name: string, type: string}>
-     */
-    private function getAvailableSources(): array
-    {
-        return Source::where('status', 'ready')
-            ->select(['id', 'name', 'type'])
-            ->get()
-            ->map(fn (Source $source): array => [
-                'id' => $source->id,
-                'name' => $source->name,
-                'type' => $source->type,
-            ])
-            ->toArray();
-    }
-
-    private function buildInstructions(string $enrichmentPrompt): string
-    {
-        $prompt = $enrichmentPrompt ?: config('prompts.default_enrichment_prompt');
-        $sources = $this->getAvailableSources();
-        $today = CarbonImmutable::now()->format('Y-m-d');
-
-        $sourcesJson = json_encode($sources, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-
-        $schema = <<<'SCHEMA'
-{
-  "enriched_query": "the rewritten query with temporal/source references removed",
-  "date_filter": {
-    "start_date": "YYYY-MM-DD or null",
-    "end_date": "YYYY-MM-DD or null",
-    "expression": "the original temporal expression or null"
-  },
-  "source_ids": [1, 2]
-}
-SCHEMA;
-
-        return <<<INSTRUCTIONS
-{$prompt}
-
-Today's date: {$today}
-
-Available sources:
-{$sourcesJson}
-
-You MUST respond with ONLY valid JSON matching this schema:
-{$schema}
-
-Rules:
-- "enriched_query" is required and must be the rewritten query with temporal and source references removed
-- "date_filter" should have start_date/end_date when temporal expressions are found, null otherwise
-- "source_ids" should list matching source IDs when the user references a source by name, null/empty otherwise
-- Do NOT include any text outside the JSON object
-INSTRUCTIONS;
     }
 
     /**
@@ -110,36 +55,6 @@ INSTRUCTIONS;
         }
 
         return "Conversation context:\n{$historyText}\nCurrent query: {$query}";
-    }
-
-    public function parseResponse(string $response, string $originalQuery): ?EnrichmentResult
-    {
-        // Strip markdown code fences if present
-        $json = trim($response);
-        if (str_starts_with($json, '```')) {
-            $json = preg_replace('/^```(?:json)?\s*\n?/i', '', $json);
-            $json = preg_replace('/\n?\s*```\s*$/', '', (string) $json);
-        }
-
-        try {
-            $data = json_decode(trim((string) $json), true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return null;
-        }
-
-        if (! is_array($data) || empty($data['enriched_query'])) {
-            return null;
-        }
-
-        $dateFilter = $this->extractDateFilter($data['date_filter'] ?? null);
-        $sourceIds = $this->extractSourceIds($data['source_ids'] ?? null);
-
-        return new EnrichmentResult(
-            originalQuery: $originalQuery,
-            enrichedQuery: $data['enriched_query'],
-            dateFilter: $dateFilter,
-            sourceIds: $sourceIds,
-        );
     }
 
     /**
@@ -209,7 +124,6 @@ INSTRUCTIONS;
     public function getRecentHistory(Conversation $conversation, int $limit = 6): array
     {
         return $conversation->messages()
-            ->where('is_summary', false)
             ->orderByDesc('created_at')
             ->take($limit)
             ->get()

@@ -11,7 +11,6 @@ return new class () extends Migration {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('title', 255)->nullable();
-            $table->text('summary')->nullable();
             $table->timestamps();
 
             $table->index(['user_id', 'updated_at']);

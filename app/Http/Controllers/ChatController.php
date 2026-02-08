@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Agents\ChatAgent;
+use App\Ai\Agents\TitleGenerationAgent;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\RagContextBuilder;
@@ -14,8 +16,6 @@ use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\UserMessage;
 use Laravel\Ai\Streaming\Events\TextDelta;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-
-use function Laravel\Ai\agent;
 
 class ChatController extends Controller
 {
@@ -83,7 +83,6 @@ class ChatController extends Controller
         // Build conversation history for the agent
         /** @var \Illuminate\Database\Eloquent\Collection<int, Message> $rawMessages */
         $rawMessages = $conversation->messages()
-            ->where('is_summary', false)
             ->orderBy('created_at')
             ->get();
         $history = $rawMessages
@@ -99,30 +98,14 @@ class ChatController extends Controller
         // Remove the last user message (we'll send it as the prompt)
         array_pop($history);
 
-        $chatSettings = $settings->group('chat');
-        $systemPromptTemplate = $chatSettings['system_prompt'] ?? config('prompts.default_system_prompt');
-
-        $systemPrompt = Str::replace('{date}', now()->format('Y-m-d'), $systemPromptTemplate);
-
-        if (Str::contains($systemPrompt, '{context}')) {
-            $systemPrompt = Str::replace('{context}', $ragContext->formattedChunks, $systemPrompt);
-        } else {
-            $systemPrompt = $systemPrompt . "\n\nContext:\n" . $ragContext->formattedChunks;
-        }
-
-        $chatAgent = agent(
-            instructions: $systemPrompt,
-            messages: $history,
-        );
+        $chatAgent = ChatAgent::make()
+            ->withMessages($history)
+            ->withRagContext($ragContext->formattedChunks);
 
         $fullResponse = '';
 
-        return response()->stream(function () use ($chatAgent, $userMessage, $conversation, $ragContext, $settings, &$fullResponse): void {
-            $streamResponse = $chatAgent->stream(
-                $userMessage,
-                provider: $settings->get('llm', 'provider', 'openai'),
-                model: $settings->get('llm', 'model', 'gpt-4o'),
-            );
+        return response()->stream(function () use ($chatAgent, $userMessage, $conversation, $ragContext, &$fullResponse): void {
+            $streamResponse = $chatAgent->stream($userMessage);
 
             $streamResponse->each(function ($event) use (&$fullResponse): void {
                 if ($event instanceof TextDelta) {
@@ -153,7 +136,7 @@ class ChatController extends Controller
 
             // Auto-generate title for new conversations
             if ($conversation->messages()->count() === 2 && ! $conversation->title) {
-                $this->generateTitle($conversation, $userMessage, $settings);
+                $this->generateTitle($conversation, $userMessage);
             }
 
             $conversation->touch();
@@ -245,20 +228,16 @@ class ChatController extends Controller
         }, $html);
     }
 
-    private function generateTitle(Conversation $conversation, string $firstMessage, SystemSettingsService $settings): void
+    private function generateTitle(Conversation $conversation, string $firstMessage): void
     {
         try {
-            $titleAgent = agent(
-                instructions: 'Generate a short title (max 50 characters) for a conversation that starts with the following message. Return only the title, nothing else.',
-            );
+            $response = TitleGenerationAgent::make()->prompt($firstMessage);
 
-            $response = $titleAgent->prompt(
-                $firstMessage,
-                provider: $settings->get('llm', 'provider', 'openai'),
-                model: $settings->get('llm', 'model', 'gpt-4o'),
-            );
-
-            $conversation->update(['title' => mb_substr(trim($response->text, '"'), 0, 255)]);
+            $title = trim($response->text, " \n\r\t\"");
+            $title = preg_replace('/^#+\s*/', '', $title);
+            $title = preg_replace('/\*{1,2}([^*]+)\*{1,2}/', '$1', $title);
+            $title = strtok($title, "\n");
+            $conversation->update(['title' => mb_substr($title, 0, 80)]);
         } catch (\Throwable) {
             // Title generation is non-critical
         }

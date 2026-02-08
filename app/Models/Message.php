@@ -15,7 +15,6 @@ class Message extends Model
         'role',
         'content',
         'citations',
-        'is_summary',
     ];
 
     #[\Override]
@@ -23,7 +22,6 @@ class Message extends Model
     {
         return [
             'citations' => 'array',
-            'is_summary' => 'boolean',
         ];
     }
 
