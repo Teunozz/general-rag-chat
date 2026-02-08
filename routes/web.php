@@ -75,7 +75,6 @@ Route::middleware(['auth', 'force.password.change', 'admin'])->prefix('admin')->
     // Settings
     Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings.edit');
     Route::put('/settings/branding', [\App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('admin.settings.branding');
-    Route::put('/settings/llm', [\App\Http\Controllers\Admin\SettingsController::class, 'updateLlm'])->name('admin.settings.llm');
     Route::put('/settings/embedding', [\App\Http\Controllers\Admin\SettingsController::class, 'updateEmbedding'])->name('admin.settings.embedding');
     Route::post('/settings/models/refresh', [\App\Http\Controllers\Admin\SettingsController::class, 'refreshModels'])->name('admin.settings.models.refresh');
     Route::put('/settings/chat', [\App\Http\Controllers\Admin\SettingsController::class, 'updateChat'])->name('admin.settings.chat');

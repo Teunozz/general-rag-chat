@@ -33,10 +33,15 @@ class SettingsController extends Controller
             'embedding' => $this->settings->group('embedding'),
             'chat' => $this->settings->group('chat'),
             'chatDefaults' => [
-                'system_prompt' => config('chat.default_system_prompt'),
-                'enrichment_prompt' => config('chat.default_enrichment_prompt'),
+                'system_prompt' => config('prompts.default_system_prompt'),
+                'enrichment_prompt' => config('prompts.default_enrichment_prompt'),
             ],
             'recap' => $this->settings->group('recap'),
+            'recapDefaults' => [
+                'prompt' => config('prompts.default_recap_prompt'),
+                'provider' => $this->settings->get('llm', 'provider', 'openai'),
+                'model' => $this->settings->get('llm', 'model', 'gpt-4o'),
+            ],
             'email' => $this->settings->group('email'),
         ]);
     }
@@ -56,20 +61,6 @@ class SettingsController extends Controller
         return $this->redirectToTab(SettingsTab::Branding)->with('success', 'Branding settings updated.');
     }
 
-    public function updateLlm(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:openai,anthropic,gemini'],
-            'model' => ['required', 'string', 'max:100'],
-        ]);
-
-        foreach ($validated as $key => $value) {
-            $this->settings->set('llm', $key, $value);
-        }
-
-        return $this->redirectToTab(SettingsTab::Models)->with('success', 'LLM settings updated.');
-    }
-
     public function updateEmbedding(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -82,7 +73,7 @@ class SettingsController extends Controller
 
         // Check if dimensions changed
         if ($validated['dimensions'] !== $currentDimensions) {
-            return $this->redirectToTab(SettingsTab::Models)->withErrors(['dimensions' => 'Changing embedding dimensions is not supported in v1. The new model must use the same dimensions (' . $currentDimensions . ').']);
+            return $this->redirectToTab(SettingsTab::Chat)->withErrors(['dimensions' => 'Changing embedding dimensions is not supported in v1. The new model must use the same dimensions (' . $currentDimensions . ').']);
         }
 
         $currentProvider = $this->settings->get('embedding', 'provider');
@@ -94,7 +85,7 @@ class SettingsController extends Controller
             // Check for active ingestion
             $processing = Source::where('status', 'processing')->exists();
             if ($processing) {
-                return $this->redirectToTab(SettingsTab::Models)->withErrors(['model' => 'Cannot change embedding model while sources are being processed.']);
+                return $this->redirectToTab(SettingsTab::Chat)->withErrors(['model' => 'Cannot change embedding model while sources are being processed.']);
             }
         }
 
@@ -108,10 +99,10 @@ class SettingsController extends Controller
                 $source->documents->each(fn (Document $doc) => ChunkAndEmbedJob::dispatch($doc));
             });
 
-            return $this->redirectToTab(SettingsTab::Models)->with('success', 'Embedding settings updated. All sources queued for re-chunking.');
+            return $this->redirectToTab(SettingsTab::Chat)->with('success', 'Embedding settings updated. All sources queued for re-chunking.');
         }
 
-        return $this->redirectToTab(SettingsTab::Models)->with('success', 'Embedding settings updated.');
+        return $this->redirectToTab(SettingsTab::Chat)->with('success', 'Embedding settings updated.');
     }
 
     public function refreshModels(Request $request, ModelDiscoveryService $discovery): JsonResponse
@@ -127,9 +118,11 @@ class SettingsController extends Controller
     public function updateChat(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:openai,anthropic,gemini'],
+            'model' => ['required', 'string', 'max:100'],
             'context_chunk_count' => ['required', 'integer', 'min:1', 'max:500'],
             'temperature' => ['required', 'numeric', 'min:0', 'max:2'],
-            'system_prompt' => ['required', 'string'],
+            'system_prompt' => ['nullable', 'string'],
             'query_enrichment_enabled' => ['boolean'],
             'enrichment_prompt' => ['nullable', 'string'],
             'context_window_size' => ['required', 'integer', 'min:0', 'max:10'],
@@ -139,6 +132,11 @@ class SettingsController extends Controller
         ]);
 
         $validated['query_enrichment_enabled'] = $request->boolean('query_enrichment_enabled');
+
+        $this->settings->set('llm', 'provider', $validated['provider']);
+        $this->settings->set('llm', 'model', $validated['model']);
+
+        unset($validated['provider'], $validated['model']);
 
         foreach ($validated as $key => $value) {
             $this->settings->set('chat', $key, $value);
@@ -158,6 +156,9 @@ class SettingsController extends Controller
             'weekly_hour' => ['required', 'integer', 'min:0', 'max:23'],
             'monthly_day' => ['required', 'integer', 'min:1', 'max:28'],
             'monthly_hour' => ['required', 'integer', 'min:0', 'max:23'],
+            'prompt' => ['nullable', 'string'],
+            'provider' => ['nullable', 'string', 'in:openai,anthropic,gemini'],
+            'model' => ['nullable', 'string', 'max:100'],
         ]);
 
         $validated['daily_enabled'] = $request->boolean('daily_enabled');

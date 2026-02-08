@@ -5,7 +5,7 @@
         <div x-data="{ tab: '{{ $activeTab }}' }" class="flex gap-6">
             {{-- Tabs --}}
             <nav class="w-48 space-y-1">
-                @foreach(['branding', 'models', 'chat', 'recap', 'email'] as $section)
+                @foreach(['branding', 'chat', 'recap', 'email'] as $section)
                 <button @click="tab = '{{ $section }}'" :class="tab === '{{ $section }}' ? 'bg-primary/10 dark:bg-primary/20 text-primary' : 'text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'"
                     class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors">
                     {{ $section }}
@@ -36,10 +36,10 @@
                     <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                 </form>
 
-                {{-- Models (LLM + Embedding) --}}
-                <div x-show="tab === 'models'" x-cloak>
-                    {{-- LLM --}}
-                    <form method="POST" action="{{ route('admin.settings.llm') }}"
+                {{-- Chat --}}
+                <div x-show="tab === 'chat'" x-cloak class="space-y-6">
+                    {{-- Chat Settings (includes LLM provider/model) --}}
+                    <form method="POST" action="{{ route('admin.settings.chat') }}"
                         x-data="modelPicker"
                         data-refresh-url="{{ route('admin.settings.models.refresh') }}"
                         data-current-provider="{{ $llm['provider'] ?? 'openai' }}"
@@ -47,24 +47,66 @@
                         data-type="text"
                         class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf @method('PUT')
-                        <h2 class="text-lg font-semibold mb-4">LLM Provider</h2>
+                        <h2 class="text-lg font-semibold mb-4">Chat Settings</h2>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium mb-1">Provider</label>
-                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <option value="openai">OpenAI</option>
-                                    <option value="anthropic">Anthropic</option>
-                                    <option value="gemini">Gemini</option>
-                                </select>
+                                <label class="block text-sm font-medium mb-1">System Prompt</label>
+                                <textarea name="system_prompt" rows="10" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['system_prompt'] ?? $chatDefaults['system_prompt'] }}</textarea>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{context}</code> to control where retrieved context is inserted. If omitted, context is appended automatically.</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Provider</label>
+                                    <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                        <option value="openai">OpenAI</option>
+                                        <option value="anthropic">Anthropic</option>
+                                        <option value="gemini">Gemini</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Model</label>
+                                    <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                        <template x-for="m in models" :key="m.id">
+                                            <option :value="m.id" x-text="m.name"></option>
+                                        </template>
+                                    </select>
+                                    <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Context Chunk Count</label>
+                                    <input type="number" name="context_chunk_count" value="{{ $chat['context_chunk_count'] ?? 100 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Temperature</label>
+                                    <input type="number" name="temperature" value="{{ $chat['temperature'] ?? 0.25 }}" step="0.05" min="0" max="2" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Context Window Size</label>
+                                    <input type="number" name="context_window_size" value="{{ $chat['context_window_size'] ?? 2 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Max Context Tokens</label>
+                                    <input type="number" name="max_context_tokens" value="{{ $chat['max_context_tokens'] ?? 16000 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Full Doc Score Threshold</label>
+                                    <input type="number" name="full_doc_score_threshold" value="{{ $chat['full_doc_score_threshold'] ?? 0.85 }}" step="0.05" min="0" max="1" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Max Full Doc Characters</label>
+                                    <input type="number" name="max_full_doc_characters" value="{{ $chat['max_full_doc_characters'] ?? 10000 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="query_enrichment_enabled" value="1" {{ ($chat['query_enrichment_enabled'] ?? false) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
+                                <label class="ml-2 text-sm">Enable Query Enrichment</label>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">Model</label>
-                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                                    <template x-for="m in models" :key="m.id">
-                                        <option :value="m.id" x-text="m.name"></option>
-                                    </template>
-                                </select>
-                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
+                                <label class="block text-sm font-medium mb-1">Enrichment Prompt</label>
+                                <textarea name="enrichment_prompt" rows="6" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for structured query enrichment. The JSON response schema, today's date, and available sources list are appended automatically at runtime.</p>
                             </div>
                         </div>
                         <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
@@ -77,7 +119,7 @@
                         data-current-provider="{{ $embedding['provider'] ?? 'openai' }}"
                         data-current-model="{{ $embedding['model'] ?? '' }}"
                         data-type="embedding"
-                        class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf @method('PUT')
                         <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
                         <div class="space-y-4">
@@ -105,60 +147,43 @@
                     </form>
                 </div>
 
-                {{-- Chat --}}
-                <form x-show="tab === 'chat'" x-cloak method="POST" action="{{ route('admin.settings.chat') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    @csrf @method('PUT')
-                    <h2 class="text-lg font-semibold mb-4">Chat Settings</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">System Prompt</label>
-                            <textarea name="system_prompt" rows="10" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['system_prompt'] ?? $chatDefaults['system_prompt'] }}</textarea>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{context}</code> to control where retrieved context is inserted. If omitted, context is appended automatically.</p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Context Chunk Count</label>
-                                <input type="number" name="context_chunk_count" value="{{ $chat['context_chunk_count'] ?? 100 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Temperature</label>
-                                <input type="number" name="temperature" value="{{ $chat['temperature'] ?? 0.25 }}" step="0.05" min="0" max="2" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Context Window Size</label>
-                                <input type="number" name="context_window_size" value="{{ $chat['context_window_size'] ?? 2 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Max Context Tokens</label>
-                                <input type="number" name="max_context_tokens" value="{{ $chat['max_context_tokens'] ?? 16000 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Full Doc Score Threshold</label>
-                                <input type="number" name="full_doc_score_threshold" value="{{ $chat['full_doc_score_threshold'] ?? 0.85 }}" step="0.05" min="0" max="1" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Max Full Doc Characters</label>
-                                <input type="number" name="max_full_doc_characters" value="{{ $chat['max_full_doc_characters'] ?? 10000 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                            </div>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" name="query_enrichment_enabled" value="1" {{ ($chat['query_enrichment_enabled'] ?? false) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
-                            <label class="ml-2 text-sm">Enable Query Enrichment</label>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Enrichment Prompt</label>
-                            <textarea name="enrichment_prompt" rows="6" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for structured query enrichment. The JSON response schema, today's date, and available sources list are appended automatically at runtime.</p>
-                        </div>
-                    </div>
-                    <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
-                </form>
-
                 {{-- Recap --}}
-                <form x-show="tab === 'recap'" x-cloak method="POST" action="{{ route('admin.settings.recap') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <form x-show="tab === 'recap'" x-cloak method="POST" action="{{ route('admin.settings.recap') }}"
+                    x-data="modelPicker"
+                    data-refresh-url="{{ route('admin.settings.models.refresh') }}"
+                    data-current-provider="{{ $recap['provider'] ?? $recapDefaults['provider'] }}"
+                    data-current-model="{{ $recap['model'] ?? $recapDefaults['model'] }}"
+                    data-type="text"
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                     @csrf @method('PUT')
                     <h2 class="text-lg font-semibold mb-4">Recap Settings</h2>
                     <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Recap Prompt</label>
+                            <textarea name="prompt" rows="8" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $recap['prompt'] ?? $recapDefaults['prompt'] }}</textarea>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for the AI when generating recap summaries. Leave empty to use the default prompt.</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Provider</label>
+                                <select name="provider" x-model="provider" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="anthropic">Anthropic</option>
+                                    <option value="gemini">Gemini</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Model</label>
+                                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                                    <template x-for="m in models" :key="m.id">
+                                        <option :value="m.id" x-text="m.name"></option>
+                                    </template>
+                                </select>
+                                <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Provider and model default to the global LLM settings if not changed here.</p>
+
                         @foreach(['daily', 'weekly', 'monthly'] as $type)
                         <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
                             <div class="flex items-center mb-2">

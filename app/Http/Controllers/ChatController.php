@@ -100,7 +100,7 @@ class ChatController extends Controller
         array_pop($history);
 
         $chatSettings = $settings->group('chat');
-        $systemPromptTemplate = $chatSettings['system_prompt'] ?? config('chat.default_system_prompt');
+        $systemPromptTemplate = $chatSettings['system_prompt'] ?? config('prompts.default_system_prompt');
 
         $systemPrompt = Str::replace('{date}', now()->format('Y-m-d'), $systemPromptTemplate);
 

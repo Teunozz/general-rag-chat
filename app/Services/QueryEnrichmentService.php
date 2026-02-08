@@ -57,7 +57,7 @@ class QueryEnrichmentService
 
     private function buildInstructions(string $enrichmentPrompt): string
     {
-        $prompt = $enrichmentPrompt ?: config('chat.default_enrichment_prompt');
+        $prompt = $enrichmentPrompt ?: config('prompts.default_enrichment_prompt');
         $sources = $this->getAvailableSources();
         $today = CarbonImmutable::now()->format('Y-m-d');
 

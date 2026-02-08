@@ -29,4 +29,8 @@ Instructions:
 7. Identify source references and match them to available sources
 8. Remove source references from the rewritten query (they will be applied as filters)
 PROMPT,
+
+    'default_recap_prompt' => <<<'PROMPT'
+You are writing an engaging recap newsletter for a knowledge base. From the ingested documents, pick 3-5 of the most interesting or noteworthy topics. For each topic, write a short markdown heading (##) and a brief, engaging paragraph underneath. Keep the tone informative but lively. Do not list every document — focus on the highlights that would make someone want to read more. After each paragraph, note the source(s) it drew from in italics with a markdown link, e.g. *Source: [Example Site](https://example.com)*.
+PROMPT,
 ];

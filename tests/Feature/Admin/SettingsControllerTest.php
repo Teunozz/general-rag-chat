@@ -48,27 +48,10 @@ test('update branding rejects invalid color', function (): void {
     $response->assertSessionHasErrors('primary_color');
 });
 
-test('update llm settings', function (): void {
-    $response = $this->actingAs($this->admin)->put(route('admin.settings.llm'), [
-        'provider' => 'anthropic',
-        'model' => 'claude-opus-4-6',
-    ]);
-
-    $response->assertRedirect();
-    $response->assertSessionHas('success');
-});
-
-test('update llm rejects invalid provider', function (): void {
-    $response = $this->actingAs($this->admin)->put(route('admin.settings.llm'), [
-        'provider' => 'invalid_provider',
-        'model' => 'some-model',
-    ]);
-
-    $response->assertSessionHasErrors('provider');
-});
-
 test('update chat settings', function (): void {
     $response = $this->actingAs($this->admin)->put(route('admin.settings.chat'), [
+        'provider' => 'anthropic',
+        'model' => 'claude-opus-4-6',
         'context_chunk_count' => 50,
         'temperature' => 0.7,
         'system_prompt' => 'You are a helpful assistant.',
@@ -82,6 +65,27 @@ test('update chat settings', function (): void {
 
     $response->assertRedirect();
     $response->assertSessionHas('success');
+    $this->assertDatabaseHas('system_settings', [
+        'group' => 'llm',
+        'key' => 'provider',
+        'value' => json_encode('anthropic'),
+    ]);
+});
+
+test('update chat rejects invalid provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.chat'), [
+        'provider' => 'invalid_provider',
+        'model' => 'some-model',
+        'context_chunk_count' => 50,
+        'temperature' => 0.7,
+        'system_prompt' => 'Test',
+        'context_window_size' => 2,
+        'full_doc_score_threshold' => 0.85,
+        'max_full_doc_characters' => 10000,
+        'max_context_tokens' => 16000,
+    ]);
+
+    $response->assertSessionHasErrors('provider');
 });
 
 test('update recap settings', function (): void {
@@ -115,8 +119,7 @@ test('each settings update redirects back with correct tab parameter', function 
     $response->assertRedirect(route('admin.settings.edit', ['tab' => $tab]));
 })->with([
     'branding' => ['admin.settings.branding', 'branding', ['app_name' => 'Test', 'app_description' => '', 'primary_color' => '#FF0000']],
-    'llm' => ['admin.settings.llm', 'models', ['provider' => 'openai', 'model' => 'gpt-4o']],
-    'chat' => ['admin.settings.chat', 'chat', ['context_chunk_count' => 50, 'temperature' => 0.7, 'system_prompt' => 'Test', 'query_enrichment_enabled' => false, 'enrichment_prompt' => '', 'context_window_size' => 2, 'full_doc_score_threshold' => 0.85, 'max_full_doc_characters' => 10000, 'max_context_tokens' => 16000]],
+    'chat' => ['admin.settings.chat', 'chat', ['provider' => 'openai', 'model' => 'gpt-4o', 'context_chunk_count' => 50, 'temperature' => 0.7, 'system_prompt' => 'Test', 'query_enrichment_enabled' => false, 'enrichment_prompt' => '', 'context_window_size' => 2, 'full_doc_score_threshold' => 0.85, 'max_full_doc_characters' => 10000, 'max_context_tokens' => 16000]],
     'recap' => ['admin.settings.recap', 'recap', ['daily_enabled' => true, 'weekly_enabled' => false, 'monthly_enabled' => true, 'daily_hour' => 9, 'weekly_day' => 1, 'weekly_hour' => 8, 'monthly_day' => 1, 'monthly_hour' => 8]],
     'email' => ['admin.settings.email', 'email', ['system_enabled' => true]],
 ]);

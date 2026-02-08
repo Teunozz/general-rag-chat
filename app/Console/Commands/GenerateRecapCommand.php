@@ -58,14 +58,18 @@ class GenerateRecapCommand extends Command
         $docSummaries = $documents->map(fn ($d): string => "- [{$d->source->name}]({$d->url}) {$d->title}: " . mb_substr((string) $d->content, 0, 200))->implode("\n");
 
         try {
+            $recapPrompt = $settings->get('recap', 'prompt') ?: config('prompts.default_recap_prompt');
+            $recapProvider = $settings->get('recap', 'provider') ?: $settings->get('llm', 'provider', 'openai');
+            $recapModel = $settings->get('recap', 'model') ?: $settings->get('llm', 'model', 'gpt-4o');
+
             $recapAgent = agent(
-                instructions: 'You are writing an engaging recap newsletter for a knowledge base. From the ingested documents, pick 3-5 of the most interesting or noteworthy topics. For each topic, write a short markdown heading (##) and a brief, engaging paragraph underneath. Keep the tone informative but lively. Do not list every document — focus on the highlights that would make someone want to read more. After each paragraph, note the source(s) it drew from in italics with a markdown link, e.g. *Source: [Example Site](https://example.com)*.',
+                instructions: $recapPrompt,
             );
 
             $response = $recapAgent->prompt(
                 "Documents ingested between {$periodStart->format('M j, Y')} and {$periodEnd->format('M j, Y')}:\n\n{$docSummaries}",
-                provider: $settings->get('llm', 'provider', 'openai'),
-                model: $settings->get('llm', 'model', 'gpt-4o'),
+                provider: $recapProvider,
+                model: $recapModel,
             );
 
             Recap::create([

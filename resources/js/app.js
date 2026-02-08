@@ -262,15 +262,18 @@ Alpine.data('modelPicker', () => ({
     loading: false,
     refreshUrl: '',
     type: 'text',
+    pendingModel: '',
 
     init() {
         this.refreshUrl = this.$el.dataset.refreshUrl;
         this.type = this.$el.dataset.type || 'text';
         this.provider = this.$el.dataset.currentProvider || 'openai';
-        this.model = this.$el.dataset.currentModel || '';
+        this.pendingModel = this.$el.dataset.currentModel || '';
+        this.model = this.pendingModel;
 
         this.fetchModels();
         this.$watch('provider', () => {
+            this.pendingModel = '';
             this.model = '';
             this.fetchModels();
         });
@@ -278,6 +281,7 @@ Alpine.data('modelPicker', () => ({
 
     async fetchModels() {
         this.loading = true;
+        const targetModel = this.pendingModel || this.model;
         try {
             const response = await fetch(this.refreshUrl, {
                 method: 'POST',
@@ -287,20 +291,28 @@ Alpine.data('modelPicker', () => ({
             const data = await response.json();
             this.models = data.models || [];
 
-            if (this.model && !this.models.find(m => m.id === this.model)) {
-                this.models.unshift({ id: this.model, name: this.model });
+            if (targetModel && !this.models.find(m => m.id === targetModel)) {
+                this.models.unshift({ id: targetModel, name: targetModel });
             }
 
-            if (!this.model && this.models.length > 0) {
-                this.model = this.models[0].id;
-            }
+            this.pendingModel = '';
+            this.setModel(targetModel || (this.models.length > 0 ? this.models[0].id : ''));
         } catch (err) {
             console.error('Failed to fetch models:', err);
-            if (this.model) {
-                this.models = [{ id: this.model, name: this.model }];
+            if (targetModel) {
+                this.models = [{ id: targetModel, name: targetModel }];
+                this.setModel(targetModel);
             }
         }
         this.loading = false;
+    },
+
+    setModel(value) {
+        this.model = value;
+        this.$nextTick(() => {
+            const select = this.$el.querySelector('select[name="model"]');
+            if (select) select.value = value;
+        });
     },
 }));
 
