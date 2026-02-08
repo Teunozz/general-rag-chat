@@ -18,7 +18,8 @@ DOCKER      = docker
         vendor vendor-update \
         queue schedule \
         create-admin refresh-feeds recap \
-        ide-helper cache-clear setup fresh
+        ide-helper cache-clear setup fresh \
+        release
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 
@@ -178,3 +179,11 @@ cache-clear: ## Clear all Laravel caches
 setup: up migrate build ## First-time setup: start containers, migrate, build assets
 
 fresh: down rebuild migrate-fresh build ## Full rebuild: teardown, rebuild, migrate, seed, build assets
+
+# ─── Release ────────────────────────────────────────────────────────────────
+
+RELEASE_IMAGE ?= teunozz/rag-backend:latest
+
+release: ## Build and push production image to Docker Hub
+	$(DOCKER) buildx build --platform linux/amd64 -t $(RELEASE_IMAGE) --load .
+	$(DOCKER) push $(RELEASE_IMAGE)

@@ -1,21 +1,48 @@
-# Portainer Stack for Synology NAS deployment
+# Portainer Stack for Synology NAS (amd64) deployment
 #
-# Usage:
-#   1. Push image to Docker Hub (from Mac):
-#      docker buildx build --platform linux/amd64 \
-#        -t <dockerhub-user>/rag-backend:latest --load .
-#      docker push <dockerhub-user>/rag-backend:latest
+# Prerequisites:
+#   - Portainer running on Synology NAS
+#   - Docker Hub account for hosting the image
 #
-#   2. In Portainer: Stacks → Add Stack → Web editor → paste this file
-#      Add environment variables (see .env.portainer.example)
+# Step 1: Build & push image (from Mac)
 #
-#   3. After deploy, open app container console and run:
-#      php artisan migrate --seed
-#      php artisan user:create-admin
+#   docker buildx build --platform linux/amd64 \
+#     -t <dockerhub-user>/rag-backend:latest --load .
+#   docker push <dockerhub-user>/rag-backend:latest
 #
-#   For ARM-based Synology NAS (DS220j, DS223j, etc.):
-#      docker buildx build --platform linux/amd64,linux/arm64 \
-#        -t <dockerhub-user>/rag-backend:latest --push .
+# Step 2: Create stack in Portainer
+#
+#   Portainer → Stacks → Add Stack → Web editor → paste this file.
+#   Scroll down to "Environment variables" and add all variables from
+#   .env.portainer.example. Required: DOCKER_IMAGE, APP_KEY, DB_PASSWORD,
+#   CIPHERSWEET_KEY, and at least one LLM API key.
+#
+# Step 3: Deploy & initialize
+#
+#   After the stack is running, open the app container console in Portainer
+#   (Containers → knowledge-base-app-1 → Console → /bin/sh) and run:
+#
+#     php artisan migrate --seed
+#     php artisan user:create-admin
+#
+# Updating the app:
+#
+#   Rebuild and push the image (step 1), then in Portainer:
+#   Stacks → knowledge-base → Update → "Re-pull image and redeploy"
+#
+# Troubleshooting:
+#
+#   Portainer only shows "Unable to deploy stack" without details.
+#   SSH into the NAS and check container logs:
+#
+#     docker logs knowledge-base-app-1
+#     docker logs knowledge-base-postgres-1
+#
+#   Common issues:
+#   - Port conflict: Change APP_PORT (default 8000) to an unused port.
+#     Synology DSM uses many ports — check with: netstat -tlnp | grep 8000
+#   - Missing env vars: APP_KEY and DB_PASSWORD have no defaults and will
+#     cause the app to crash silently on startup.
 
 x-app-env: &app-env
   APP_NAME: ${APP_NAME:-My Knowledge Base}
