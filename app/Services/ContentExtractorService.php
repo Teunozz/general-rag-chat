@@ -8,11 +8,60 @@ use fivefilters\Readability\Readability;
 
 class ContentExtractorService
 {
+    /**
+     * HTML tag names that typically contain non-article content.
+     */
+    private const NON_CONTENT_TAGS = ['nav', 'footer', 'aside', 'header'];
+
+    /**
+     * CSS class/ID substrings that signal non-article boilerplate.
+     */
+    private const BOILERPLATE_PATTERNS = [
+        'cookie',
+        'consent',
+        'gdpr',
+        'privacy',
+        'newsletter',
+        'subscribe',
+        'sidebar',
+        'social-share',
+        'share-buttons',
+        'related-posts',
+        'related-links',
+        'advertisement',
+        'ad-wrapper',
+        'banner',
+        'popup',
+        'modal',
+        'breadcrumb',
+    ];
+
+    /**
+     * Text markers that indicate the start of trailing boilerplate.
+     * Content from the earliest match to the end of text will be removed.
+     */
+    private const TRAILING_BOILERPLATE_MARKERS = [
+        'Related Links',
+        'Related Articles',
+        'Related Stories',
+        'Subscribe Free To Our',
+        'Subscribe to our newsletter',
+        'Sign up for our newsletter',
+        'The content herein, unless otherwise',
+        'All rights reserved.',
+        'General Data Protection Regulation',
+        'Advertising does not imply endorsement',
+        'You must confirm your public display name before commenting',
+        'Post navigation',
+    ];
+
     public function extract(string $html): ?array
     {
         try {
+            $cleanedHtml = $this->stripNonContentElements($html);
+
             $readability = new Readability(new Configuration());
-            $readability->parse($html);
+            $readability->parse($cleanedHtml);
 
             $title = $readability->getTitle();
             $content = $readability->getContent();
@@ -26,6 +75,8 @@ class ContentExtractorService
             $plainText = html_entity_decode($plainText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $plainText = preg_replace('/\s+/', ' ', trim($plainText));
 
+            $plainText = $this->stripTrailingBoilerplate($plainText);
+
             return [
                 'title' => $title ?? 'Untitled',
                 'content' => $plainText,
@@ -34,6 +85,69 @@ class ContentExtractorService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Truncate text at the earliest trailing boilerplate marker.
+     */
+    private function stripTrailingBoilerplate(string $text): string
+    {
+        $earliestPos = strlen($text);
+
+        foreach (self::TRAILING_BOILERPLATE_MARKERS as $marker) {
+            $pos = stripos($text, $marker);
+            if ($pos !== false && $pos < $earliestPos) {
+                $earliestPos = $pos;
+            }
+        }
+
+        if ($earliestPos < strlen($text)) {
+            $text = trim(substr($text, 0, $earliestPos));
+        }
+
+        return $text;
+    }
+
+    /**
+     * Remove non-content DOM elements before Readability processes the HTML.
+     */
+    private function stripNonContentElements(string $html): string
+    {
+        $dom = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        $xpath = new \DOMXPath($dom);
+        $toRemove = [];
+
+        // Remove non-content tags (nav, footer, aside, header)
+        foreach (self::NON_CONTENT_TAGS as $tag) {
+            foreach ($xpath->query('//' . $tag) as $node) {
+                $toRemove[] = $node;
+            }
+        }
+
+        // Remove elements whose class or id matches boilerplate patterns
+        $conditions = [];
+        foreach (self::BOILERPLATE_PATTERNS as $pattern) {
+            $conditions[] = 'contains(translate(@class,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"' . $pattern . '")';
+            $conditions[] = 'contains(translate(@id,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"' . $pattern . '")';
+        }
+        $query = '//*[' . implode(' or ', $conditions) . ']';
+        foreach ($xpath->query($query) as $node) {
+            $toRemove[] = $node;
+        }
+
+        if ($toRemove === []) {
+            return $html;
+        }
+
+        foreach ($toRemove as $node) {
+            $node->parentNode?->removeChild($node);
+        }
+
+        return $dom->saveHTML() ?: $html;
     }
 
     private function extractPublishedDate(string $html): ?Carbon

@@ -158,6 +158,83 @@ test('extracts published_at from time element datetime', function (): void {
     }
 });
 
+test('strips navigation and footer boilerplate from content', function (): void {
+    $html = <<<'HTML_WRAP'
+    <html><head><title>Article With Boilerplate</title></head>
+    <body>
+        <nav><ul><li><a href="/">Home</a></li><li><a href="/about">About</a></li></ul></nav>
+        <article>
+            <h1>Article With Boilerplate</h1>
+            <p>This is the main article content that should be extracted cleanly. It contains important information that the reader actually wants to see when browsing the knowledge base.</p>
+            <p>A second paragraph provides additional substance for the Readability parser to correctly identify the main content area of this page.</p>
+        </article>
+        <footer>
+            <p>Copyright 2025 Example Corp. All rights reserved.</p>
+            <p>General Data Protection Regulation (GDPR) Statement. Our advertisers use various cookies.</p>
+            <p>Privacy Statement. Additional information can be found here at About Us.</p>
+        </footer>
+    </body></html>
+    HTML_WRAP;
+
+    $result = $this->service->extract($html);
+
+    expect($result)->not->toBeNull()
+        ->and($result['content'])->toContain('main article content')
+        ->and($result['content'])->not->toContain('Copyright 2025')
+        ->and($result['content'])->not->toContain('GDPR')
+        ->and($result['content'])->not->toContain('Privacy Statement')
+        ->and($result['content'])->not->toContain('About Us');
+});
+
+test('strips elements with boilerplate class names', function (): void {
+    $html = <<<'HTML_WRAP'
+    <html><head><title>Article With Boilerplate Classes</title></head>
+    <body>
+        <article>
+            <h1>Clean Article</h1>
+            <p>This is the primary content of the article that should survive extraction. The Readability algorithm should identify this as the main readable area of the page.</p>
+            <p>Here is another paragraph of important article text to ensure enough content mass for reliable extraction.</p>
+        </article>
+        <div class="cookie-consent">We use cookies to improve your experience.</div>
+        <div class="newsletter-signup">Subscribe to our newsletter for updates.</div>
+        <aside class="sidebar">Related articles and advertisements here.</aside>
+    </body></html>
+    HTML_WRAP;
+
+    $result = $this->service->extract($html);
+
+    expect($result)->not->toBeNull()
+        ->and($result['content'])->toContain('primary content')
+        ->and($result['content'])->not->toContain('cookies')
+        ->and($result['content'])->not->toContain('sidebar');
+});
+
+test('strips trailing boilerplate text from non-semantic html', function (): void {
+    $html = <<<'HTML_WRAP'
+    <html><head><title>Old School Article</title></head>
+    <body>
+        <div>
+            <h1>Old School Article</h1>
+            <p>This is real article content about space exploration and scientific discoveries. The article discusses recent developments in the aerospace industry and their implications for future missions.</p>
+            <p>Additional details about the topic provide depth and context for the reader to understand the significance of these developments in the broader scientific landscape.</p>
+            <span>Related Links</span>
+            <span><a href="/topics">Space Exploration News</a></span>
+            <span>The content herein, unless otherwise known to be public domain, are Copyright 1995-2024.</span>
+            <span>General Data Protection Regulation (GDPR) Statement. Our advertisers use cookies.</span>
+            <span>Privacy Statement. Additional information can be found here at About Us.</span>
+        </div>
+    </body></html>
+    HTML_WRAP;
+
+    $result = $this->service->extract($html);
+
+    expect($result)->not->toBeNull()
+        ->and($result['content'])->toContain('space exploration')
+        ->and($result['content'])->not->toContain('Copyright')
+        ->and($result['content'])->not->toContain('GDPR')
+        ->and($result['content'])->not->toContain('Privacy Statement');
+});
+
 test('returns null published_at when no date found', function (): void {
     $html = <<<'HTML_WRAP'
     <html><head><title>No Date</title></head>
