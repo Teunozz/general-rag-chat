@@ -74,15 +74,11 @@ class ContentSecurityPolicy
             Debugbar::getJavascriptRenderer()->setCspNonce($nonce);
         }
 
-        $scriptSrc = "'self' 'nonce-{$nonce}'";
-        $styleSrc = "'self' 'nonce-{$nonce}'";
-        $connectSrc = "'self'";
-
-        if (app()->environment('local')) {
+        if (app()->isLocal()) {
             $viteOrigins = 'http://[::1]:5173 http://localhost:5173';
-            $scriptSrc .= " {$viteOrigins}";
-            $styleSrc .= " {$viteOrigins}";
-            $connectSrc .= " {$viteOrigins} ws://[::1]:5173 ws://localhost:5173";
+            static::addPolicy('script-src', $viteOrigins);
+            static::addPolicy('style-src', $viteOrigins);
+            static::addPolicy('connect-src', "{$viteOrigins} ws://[::1]:5173 ws://localhost:5173");
         }
 
         $frameAncestors = "'none'";
@@ -93,11 +89,11 @@ class ContentSecurityPolicy
 
         $directives = [
             "default-src 'self' 'nonce-{$nonce}'" . static::additional('default-src'),
-            "script-src {$scriptSrc}" . static::additional('script-src'),
-            "style-src {$styleSrc}" . static::additional('style-src'),
+            "script-src 'self' 'nonce-{$nonce}'" . static::additional('script-src'),
+            "style-src 'self' 'nonce-{$nonce}'" . static::additional('style-src'),
             "img-src 'self' data:" . static::additional('img-src'),
             "font-src 'self'" . static::additional('font-src'),
-            "connect-src {$connectSrc}" . static::additional('connect-src'),
+            "connect-src 'self'" . static::additional('connect-src'),
             "frame-ancestors {$frameAncestors}",
             "base-uri 'self'" . static::additional('base-uri'),
             "object-src 'none'" . static::additional('object-src'),
