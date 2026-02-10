@@ -1,5 +1,5 @@
 @props([
-    'providers' => ['openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'gemini' => 'Gemini'],
+    'providers' => [],
     'currentProvider' => 'openai',
     'currentModel' => '',
     'type' => 'text',
@@ -23,17 +23,22 @@
         <div>
             <div class="flex items-center justify-between mb-1">
                 <label class="block text-sm font-medium">Model</label>
-                <button type="button" @click="refreshModels()" :disabled="loading" class="text-xs text-gray-500 hover:text-primary disabled:opacity-50" title="Refresh models">
+                <button x-show="supportsDiscovery" type="button" @click="refreshModels()" :disabled="loading" class="text-xs text-gray-500 hover:text-primary disabled:opacity-50" title="Refresh models">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 inline" :class="loading && 'animate-spin'" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                 </button>
             </div>
-            <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
-                <template x-for="m in models" :key="m.id">
-                    <option :value="m.id" x-text="m.name"></option>
-                </template>
-            </select>
+            <template x-if="supportsDiscovery">
+                <select name="model" x-model="model" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                    <template x-for="m in models" :key="m.id">
+                        <option :value="m.id" x-text="m.name"></option>
+                    </template>
+                </select>
+            </template>
+            <template x-if="!supportsDiscovery">
+                <input type="text" name="model" x-model="model" placeholder="Enter model ID" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+            </template>
             <p x-show="loading" class="text-xs text-gray-500 mt-1">Loading models...</p>
         </div>
     </div>

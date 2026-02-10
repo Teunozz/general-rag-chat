@@ -9,10 +9,8 @@ class ModelDiscoveryService
 {
     private const int CACHE_TTL = 3600;
 
-    private const array KEY_ENV_NAMES = [
-        'openai' => 'OPENAI_API_KEY',
-        'anthropic' => 'ANTHROPIC_API_KEY',
-        'gemini' => 'GEMINI_API_KEY',
+    private const array DISCOVERY_PROVIDERS = [
+        'openai', 'anthropic', 'gemini', 'mistral', 'ollama', 'openrouter',
     ];
 
     public function hasApiKey(string $provider): bool
@@ -22,7 +20,12 @@ class ModelDiscoveryService
 
     public function envKeyName(string $provider): string
     {
-        return self::KEY_ENV_NAMES[$provider] ?? strtoupper($provider) . '_API_KEY';
+        return strtoupper($provider) . '_API_KEY';
+    }
+
+    public function supportsModelDiscovery(string $provider): bool
+    {
+        return in_array($provider, self::DISCOVERY_PROVIDERS);
     }
 
     public function fetchModels(string $provider, string $type = 'text', bool $fresh = false): array
@@ -42,6 +45,9 @@ class ModelDiscoveryService
             'openai' => $this->fetchOpenAiModels($type),
             'anthropic' => $this->fetchAnthropicModels($type),
             'gemini' => $this->fetchGeminiModels($type),
+            'mistral' => $this->fetchMistralModels($type),
+            'ollama' => $this->fetchOllamaModels($type),
+            'openrouter' => $this->fetchOpenRouterModels($type),
             default => ['models' => [], 'from_api' => false],
         };
 
@@ -110,7 +116,7 @@ class ModelDiscoveryService
             ])->get('https://api.anthropic.com/v1/models', ['limit' => 100]);
 
             if (! $response->successful()) {
-                return ['models' => $this->defaultAnthropicModels(), 'from_api' => false];
+                return ['models' => [], 'from_api' => false];
             }
 
             $models = collect($response->json('data', []))
@@ -124,17 +130,8 @@ class ModelDiscoveryService
 
             return ['models' => $models, 'from_api' => true];
         } catch (\Throwable) {
-            return ['models' => $this->defaultAnthropicModels(), 'from_api' => false];
+            return ['models' => [], 'from_api' => false];
         }
-    }
-
-    private function defaultAnthropicModels(): array
-    {
-        return [
-            ['id' => 'claude-opus-4-6', 'name' => 'Claude Opus 4.6'],
-            ['id' => 'claude-sonnet-4-5-20250929', 'name' => 'Claude Sonnet 4.5'],
-            ['id' => 'claude-haiku-4-5-20251001', 'name' => 'Claude Haiku 4.5'],
-        ];
     }
 
     /**
@@ -158,7 +155,7 @@ class ModelDiscoveryService
             ]);
 
             if (! $response->successful()) {
-                return ['models' => $this->defaultGeminiModels(), 'from_api' => false];
+                return ['models' => [], 'from_api' => false];
             }
 
             $models = collect($response->json('models', []))
@@ -173,7 +170,7 @@ class ModelDiscoveryService
 
             return ['models' => $models, 'from_api' => true];
         } catch (\Throwable) {
-            return ['models' => $this->defaultGeminiModels(), 'from_api' => false];
+            return ['models' => [], 'from_api' => false];
         }
     }
 
@@ -213,11 +210,102 @@ class ModelDiscoveryService
         }
     }
 
-    private function defaultGeminiModels(): array
+    /**
+     * @return array{models: array<int, array{id: string, name: string}>, from_api: bool}
+     */
+    private function fetchMistralModels(string $type): array
     {
-        return [
-            ['id' => 'gemini-2.0-flash', 'name' => 'Gemini 2.0 Flash'],
-            ['id' => 'gemini-2.0-pro', 'name' => 'Gemini 2.0 Pro'],
-        ];
+        $apiKey = config('ai.providers.mistral.key');
+        if (! $apiKey) {
+            return ['models' => [], 'from_api' => false];
+        }
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->get('https://api.mistral.ai/v1/models');
+
+            if (! $response->successful()) {
+                return ['models' => [], 'from_api' => false];
+            }
+
+            $models = collect($response->json('data', []))
+                ->filter(function (array $model) use ($type): bool {
+                    $id = $model['id'] ?? '';
+                    if ($type === 'embedding') {
+                        return str_contains($id, 'embed');
+                    }
+                    return ! str_contains($id, 'embed');
+                })
+                ->map(fn (array $model): array => ['id' => $model['id'], 'name' => $model['id']])
+                ->sortBy('id')
+                ->values()
+                ->toArray();
+
+            return ['models' => $models, 'from_api' => true];
+        } catch (\Throwable) {
+            return ['models' => [], 'from_api' => false];
+        }
+    }
+
+    /**
+     * @return array{models: array<int, array{id: string, name: string}>, from_api: bool}
+     */
+    private function fetchOllamaModels(string $type): array
+    {
+        $baseUrl = config('ai.providers.ollama.url', 'http://localhost:11434');
+
+        try {
+            $response = Http::get("{$baseUrl}/api/tags");
+
+            if (! $response->successful()) {
+                return ['models' => [], 'from_api' => false];
+            }
+
+            $models = collect($response->json('models', []))
+                ->map(fn (array $model): array => [
+                    'id' => $model['name'],
+                    'name' => $model['name'],
+                ])
+                ->sortBy('id')
+                ->values()
+                ->toArray();
+
+            return ['models' => $models, 'from_api' => true];
+        } catch (\Throwable) {
+            return ['models' => [], 'from_api' => false];
+        }
+    }
+
+    /**
+     * @return array{models: array<int, array{id: string, name: string}>, from_api: bool}
+     */
+    private function fetchOpenRouterModels(string $type): array
+    {
+        $apiKey = config('ai.providers.openrouter.key');
+        if (! $apiKey) {
+            return ['models' => [], 'from_api' => false];
+        }
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->get('https://openrouter.ai/api/v1/models');
+
+            if (! $response->successful()) {
+                return ['models' => [], 'from_api' => false];
+            }
+
+            $models = collect($response->json('data', []))
+                ->map(fn (array $model): array => [
+                    'id' => $model['id'],
+                    'name' => $model['name'] ?? $model['id'],
+                ])
+                ->sortBy('name')
+                ->values()
+                ->toArray();
+
+            return ['models' => $models, 'from_api' => true];
+        } catch (\Throwable) {
+            return ['models' => [], 'from_api' => false];
+        }
     }
 }

@@ -35,7 +35,7 @@ test('anthropic api success returns mapped models', function (): void {
     expect($sonnet['name'])->toBe('Claude Sonnet 4.5');
 });
 
-test('anthropic api failure returns fallback defaults', function (): void {
+test('anthropic api failure returns empty', function (): void {
     config(['ai.providers.anthropic.key' => 'test-key']);
 
     Http::fake([
@@ -44,11 +44,7 @@ test('anthropic api failure returns fallback defaults', function (): void {
 
     $models = $this->service->fetchModels('anthropic', 'text');
 
-    $ids = array_column($models, 'id');
-    expect($models)->not->toBeEmpty()
-        ->and($ids)->toContain('claude-opus-4-6')
-        ->and($ids)->toContain('claude-sonnet-4-5-20250929')
-        ->and($ids)->toContain('claude-haiku-4-5-20251001');
+    expect($models)->toBeEmpty();
 });
 
 test('anthropic no api key returns empty', function (): void {
@@ -106,7 +102,7 @@ test('gemini api success returns filtered and mapped models', function (): void 
     }
 });
 
-test('gemini api failure returns fallback defaults', function (): void {
+test('gemini api failure returns empty', function (): void {
     config(['ai.providers.gemini.key' => 'test-key']);
 
     Http::fake([
@@ -115,10 +111,7 @@ test('gemini api failure returns fallback defaults', function (): void {
 
     $models = $this->service->fetchModels('gemini', 'text');
 
-    $ids = array_column($models, 'id');
-    expect($models)->not->toBeEmpty()
-        ->and($ids)->toContain('gemini-2.0-flash')
-        ->and($ids)->toContain('gemini-2.0-pro');
+    expect($models)->toBeEmpty();
 });
 
 test('gemini no api key returns empty', function (): void {
@@ -223,6 +216,128 @@ test('openai handles api failure', function (): void {
     expect($models)->toBeEmpty();
 });
 
+// --- Mistral ---
+
+test('mistral api success returns text models', function (): void {
+    config(['ai.providers.mistral.key' => 'test-key']);
+
+    Http::fake([
+        'api.mistral.ai/v1/models' => Http::response([
+            'data' => [
+                ['id' => 'mistral-large-latest'],
+                ['id' => 'mistral-small-latest'],
+                ['id' => 'mistral-embed'],
+            ],
+        ]),
+    ]);
+
+    $models = $this->service->fetchModels('mistral', 'text');
+
+    $ids = array_column($models, 'id');
+    expect($ids)->toContain('mistral-large-latest')
+        ->and($ids)->toContain('mistral-small-latest')
+        ->and($ids)->not->toContain('mistral-embed');
+});
+
+test('mistral api success returns embedding models', function (): void {
+    config(['ai.providers.mistral.key' => 'test-key']);
+
+    Http::fake([
+        'api.mistral.ai/v1/models' => Http::response([
+            'data' => [
+                ['id' => 'mistral-large-latest'],
+                ['id' => 'mistral-embed'],
+            ],
+        ]),
+    ]);
+
+    $models = $this->service->fetchModels('mistral', 'embedding');
+
+    $ids = array_column($models, 'id');
+    expect($ids)->toContain('mistral-embed')
+        ->and($ids)->not->toContain('mistral-large-latest');
+});
+
+test('mistral no api key returns empty', function (): void {
+    config(['ai.providers.mistral.key' => null]);
+
+    $models = $this->service->fetchModels('mistral', 'text');
+
+    expect($models)->toBeEmpty();
+});
+
+// --- Ollama ---
+
+test('ollama api success returns models', function (): void {
+    config(['ai.providers.ollama.url' => 'http://localhost:11434']);
+
+    Http::fake([
+        'localhost:11434/api/tags' => Http::response([
+            'models' => [
+                ['name' => 'llama3:latest'],
+                ['name' => 'mistral:latest'],
+            ],
+        ]),
+    ]);
+
+    $models = $this->service->fetchModels('ollama', 'text');
+
+    $ids = array_column($models, 'id');
+    expect($ids)->toContain('llama3:latest')
+        ->and($ids)->toContain('mistral:latest');
+});
+
+test('ollama handles connection failure', function (): void {
+    config(['ai.providers.ollama.url' => 'http://localhost:11434']);
+
+    Http::fake([
+        'localhost:11434/api/tags' => Http::response([], 500),
+    ]);
+
+    $models = $this->service->fetchModels('ollama', 'text');
+
+    expect($models)->toBeEmpty();
+});
+
+// --- OpenRouter ---
+
+test('openrouter api success returns models', function (): void {
+    config(['ai.providers.openrouter.key' => 'test-key']);
+
+    Http::fake([
+        'openrouter.ai/api/v1/models' => Http::response([
+            'data' => [
+                ['id' => 'openai/gpt-4o', 'name' => 'GPT-4o'],
+                ['id' => 'anthropic/claude-3-opus', 'name' => 'Claude 3 Opus'],
+            ],
+        ]),
+    ]);
+
+    $models = $this->service->fetchModels('openrouter', 'text');
+
+    $ids = array_column($models, 'id');
+    expect($ids)->toContain('openai/gpt-4o')
+        ->and($ids)->toContain('anthropic/claude-3-opus');
+});
+
+test('openrouter no api key returns empty', function (): void {
+    config(['ai.providers.openrouter.key' => null]);
+
+    $models = $this->service->fetchModels('openrouter', 'text');
+
+    expect($models)->toBeEmpty();
+});
+
+// --- supportsModelDiscovery ---
+
+test('supportsModelDiscovery returns true for providers with fetch methods', function (string $provider): void {
+    expect($this->service->supportsModelDiscovery($provider))->toBeTrue();
+})->with(['openai', 'anthropic', 'gemini', 'mistral', 'ollama', 'openrouter']);
+
+test('supportsModelDiscovery returns false for providers without fetch methods', function (string $provider): void {
+    expect($this->service->supportsModelDiscovery($provider))->toBeFalse();
+})->with(['deepseek', 'groq', 'xai', 'cohere', 'voyageai', 'jina']);
+
 // --- General ---
 
 test('unknown provider returns empty', function (): void {
@@ -293,16 +408,15 @@ test('fresh bypass makes new http request', function (): void {
     expect($models)->toHaveCount(1);
 });
 
-test('fallback result is not cached', function (): void {
+test('failed result is not cached', function (): void {
     config(['ai.providers.anthropic.key' => 'test-key']);
 
-    // First call fails - fallback should not be cached
     Http::fake([
         'api.anthropic.com/v1/models*' => Http::response([], 500),
     ]);
 
-    $fallback = $this->service->fetchModels('anthropic', 'text');
-    expect($fallback)->not->toBeEmpty(); // fallback defaults returned
+    $result = $this->service->fetchModels('anthropic', 'text');
+    expect($result)->toBeEmpty();
 
     expect(Cache::get('model-discovery:anthropic:text'))->toBeNull();
 });
@@ -324,7 +438,8 @@ test('hasApiKey returns false when key is null', function (): void {
 test('envKeyName returns correct env var names', function (): void {
     expect($this->service->envKeyName('openai'))->toBe('OPENAI_API_KEY')
         ->and($this->service->envKeyName('anthropic'))->toBe('ANTHROPIC_API_KEY')
-        ->and($this->service->envKeyName('gemini'))->toBe('GEMINI_API_KEY');
+        ->and($this->service->envKeyName('gemini'))->toBe('GEMINI_API_KEY')
+        ->and($this->service->envKeyName('mistral'))->toBe('MISTRAL_API_KEY');
 });
 
 test('successful api result is cached', function (): void {

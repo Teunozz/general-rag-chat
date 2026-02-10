@@ -113,6 +113,73 @@ test('update email settings', function (): void {
     $response->assertSessionHas('success');
 });
 
+test('chat accepts deepseek provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.chat'), [
+        'provider' => 'deepseek',
+        'model' => 'deepseek-chat',
+        'context_chunk_count' => 50,
+        'temperature' => 0.7,
+        'system_prompt' => 'Test',
+        'query_enrichment_enabled' => false,
+        'enrichment_prompt' => '',
+        'context_window_size' => 2,
+        'full_doc_score_threshold' => 0.85,
+        'max_full_doc_characters' => 10000,
+        'max_context_tokens' => 16000,
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+});
+
+test('chat rejects embedding-only provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.chat'), [
+        'provider' => 'voyageai',
+        'model' => 'voyage-3',
+        'context_chunk_count' => 50,
+        'temperature' => 0.7,
+        'system_prompt' => 'Test',
+        'context_window_size' => 2,
+        'full_doc_score_threshold' => 0.85,
+        'max_full_doc_characters' => 10000,
+        'max_context_tokens' => 16000,
+    ]);
+
+    $response->assertSessionHasErrors('provider');
+});
+
+test('embedding accepts voyageai provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.embedding'), [
+        'provider' => 'voyageai',
+        'model' => 'voyage-3',
+        'dimensions' => 1536,
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+});
+
+test('embedding accepts mistral provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.embedding'), [
+        'provider' => 'mistral',
+        'model' => 'mistral-embed',
+        'dimensions' => 1536,
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+});
+
+test('embedding rejects text-only provider', function (): void {
+    $response = $this->actingAs($this->admin)->put(route('admin.settings.embedding'), [
+        'provider' => 'deepseek',
+        'model' => 'deepseek-chat',
+        'dimensions' => 1536,
+    ]);
+
+    $response->assertSessionHasErrors('provider');
+});
+
 test('each settings update redirects back with correct tab parameter', function (string $route, string $tab, array $data): void {
     $response = $this->actingAs($this->admin)->put(route($route), $data);
 

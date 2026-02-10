@@ -265,6 +265,7 @@ Alpine.data('modelPicker', () => ({
     pendingModel: '',
     missingKey: false,
     envKeyName: '',
+    supportsDiscovery: true,
 
     init() {
         this.refreshUrl = this.$el.dataset.refreshUrl;
@@ -298,20 +299,24 @@ Alpine.data('modelPicker', () => ({
             });
             const data = await response.json();
             this.models = data.models || [];
+            this.supportsDiscovery = data.supports_discovery !== false;
 
             if (data.has_key === false) {
                 this.missingKey = true;
                 this.envKeyName = data.env_key || '';
             }
 
-            if (targetModel && !this.models.find(m => m.id === targetModel)) {
-                this.models.unshift({ id: targetModel, name: targetModel });
+            if (this.supportsDiscovery) {
+                if (targetModel && !this.models.find(m => m.id === targetModel)) {
+                    this.models.unshift({ id: targetModel, name: targetModel });
+                }
             }
 
             this.pendingModel = '';
             this.setModel(targetModel || (this.models.length > 0 ? this.models[0].id : ''));
         } catch (err) {
             console.error('Failed to fetch models:', err);
+            this.supportsDiscovery = false;
             if (targetModel) {
                 this.models = [{ id: targetModel, name: targetModel }];
                 this.setModel(targetModel);
@@ -323,8 +328,8 @@ Alpine.data('modelPicker', () => ({
     setModel(value) {
         this.model = value;
         this.$nextTick(() => {
-            const select = this.$el.querySelector('select[name="model"]');
-            if (select) select.value = value;
+            const el = this.$el.querySelector('select[name="model"]') || this.$el.querySelector('input[name="model"]');
+            if (el) el.value = value;
         });
     },
 }));

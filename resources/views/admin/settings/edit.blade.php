@@ -49,6 +49,7 @@
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{context}</code> to control where retrieved context is inserted. If omitted, context is appended automatically.</p>
                             </div>
                             <x-model-picker
+                                :providers="$textProviders"
                                 :current-provider="$llm['provider'] ?? 'openai'"
                                 :current-model="$llm['model'] ?? ''"
                                 type="text"
@@ -98,7 +99,7 @@
                         <h2 class="text-lg font-semibold mb-4">Embedding Provider</h2>
                         <div class="space-y-4">
                             <x-model-picker
-                                :providers="['openai' => 'OpenAI']"
+                                :providers="$embeddingProviders"
                                 :current-provider="$embedding['provider'] ?? 'openai'"
                                 :current-model="$embedding['model'] ?? ''"
                                 type="embedding"
@@ -123,6 +124,7 @@
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Instructions for the AI when generating recap summaries. Leave empty to use the default prompt.</p>
                         </div>
                         <x-model-picker
+                            :providers="$textProviders"
                             :current-provider="$recap['provider'] ?? $recapDefaults['provider']"
                             :current-model="$recap['model'] ?? $recapDefaults['model']"
                             type="text"

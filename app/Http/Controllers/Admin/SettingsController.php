@@ -8,17 +8,20 @@ use App\Jobs\ChunkAndEmbedJob;
 use App\Models\Document;
 use App\Models\Source;
 use App\Services\ModelDiscoveryService;
+use App\Services\ProviderCapabilityService;
 use App\Services\SystemSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
     public function __construct(
         private readonly SystemSettingsService $settings,
+        private readonly ProviderCapabilityService $capabilities,
     ) {
     }
 
@@ -43,6 +46,8 @@ class SettingsController extends Controller
                 'model' => $this->settings->get('llm', 'model', 'gpt-4o'),
             ],
             'email' => $this->settings->group('email'),
+            'textProviders' => $this->capabilities->textProviders(),
+            'embeddingProviders' => $this->capabilities->embeddingProviders(),
         ]);
     }
 
@@ -64,7 +69,7 @@ class SettingsController extends Controller
     public function updateEmbedding(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:openai,anthropic,gemini'],
+            'provider' => ['required', 'string', Rule::in($this->capabilities->validProviderKeys('embedding'))],
             'model' => ['required', 'string', 'max:100'],
             'dimensions' => ['required', 'integer', 'min:1'],
         ]);
@@ -116,13 +121,14 @@ class SettingsController extends Controller
             'models' => $models,
             'has_key' => $discovery->hasApiKey($provider),
             'env_key' => $discovery->envKeyName($provider),
+            'supports_discovery' => $discovery->supportsModelDiscovery($provider),
         ]);
     }
 
     public function updateChat(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'in:openai,anthropic,gemini'],
+            'provider' => ['required', 'string', Rule::in($this->capabilities->validProviderKeys('text'))],
             'model' => ['required', 'string', 'max:100'],
             'context_chunk_count' => ['required', 'integer', 'min:1', 'max:500'],
             'temperature' => ['required', 'numeric', 'min:0', 'max:2'],
@@ -161,7 +167,7 @@ class SettingsController extends Controller
             'monthly_day' => ['required', 'integer', 'min:1', 'max:28'],
             'monthly_hour' => ['required', 'integer', 'min:0', 'max:23'],
             'prompt' => ['nullable', 'string'],
-            'provider' => ['nullable', 'string', 'in:openai,anthropic,gemini'],
+            'provider' => ['nullable', 'string', Rule::in($this->capabilities->validProviderKeys('text'))],
             'model' => ['nullable', 'string', 'max:100'],
         ]);
 
