@@ -119,14 +119,15 @@
 
             {{-- Input area --}}
             <div class="border-t border-gray-200 dark:border-gray-700 px-4 py-4">
-                <form @submit.prevent="sendMessage" class="max-w-3xl mx-auto flex gap-3">
+                <form @submit.prevent="sendMessage" class="max-w-3xl mx-auto flex gap-3 items-end">
                     @if(!$conversation)
                     <input type="hidden" x-ref="newConversation" value="1">
                     @endif
-                    <input type="text" x-model="messageInput" :disabled="isStreaming" placeholder="Ask a question..."
-                        class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <textarea x-model="messageInput" x-ref="chatInput" :disabled="isStreaming" placeholder="Ask a question..."
+                        rows="1" @input="autoGrow()" @keydown.enter="handleEnter($event)"
+                        class="chat-textarea flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none overflow-y-hidden max-h-48"></textarea>
                     <button type="submit" :disabled="isStreaming || !messageInput.trim()"
-                        class="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                        class="bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shrink-0">
                         <svg x-show="isStreaming" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                         <span x-text="isStreaming ? 'Streaming...' : 'Send'"></span>
                     </button>

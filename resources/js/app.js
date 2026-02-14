@@ -101,6 +101,19 @@ Alpine.data('chatApp', () => ({
         });
     },
 
+    handleEnter(e) {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        this.sendMessage();
+    },
+
+    autoGrow() {
+        const el = this.$refs.chatInput;
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+        el.style.overflowY = el.scrollHeight > el.offsetHeight ? 'auto' : 'hidden';
+    },
+
     togglePanel() {
         this.panelOpen = !this.panelOpen;
         localStorage.setItem('chatPanelOpen', this.panelOpen);
@@ -115,6 +128,7 @@ Alpine.data('chatApp', () => ({
 
         const message = this.messageInput;
         this.messageInput = '';
+        this.$refs.chatInput.style.height = 'auto';
 
         const wasNew = await this.ensureConversation();
         const savedScroll = container.scrollTop;
