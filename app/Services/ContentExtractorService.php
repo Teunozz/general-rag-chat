@@ -192,7 +192,16 @@ class ContentExtractorService
             return $this->tryParseDate($match[1]);
         }
 
-        return null;
+        // Try HTML microdata itemprop="datePublished"
+        if (preg_match('/<[^>]*itemprop=["\']datePublished["\'][^>]*content=["\']([^"\']+)["\']/i', $html, $match)) {
+            return $this->tryParseDate($match[1]);
+        }
+        if (preg_match('/<[^>]*content=["\']([^"\']+)["\'][^>]*itemprop=["\']datePublished["\']/i', $html, $match)) {
+            return $this->tryParseDate($match[1]);
+        }
+
+        // Try extracting date from body text (news datelines like "City (AFP) Feb 12, 2026")
+        return $this->extractDateFromBodyText($html);
     }
 
     private function parseDateFromJsonLd(string $json): ?Carbon
@@ -234,6 +243,35 @@ class ContentExtractorService
                     return $date;
                 }
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract a date from the article body text by looking for common dateline patterns.
+     *
+     * Matches formats like "Feb 12, 2026", "February 12, 2026", "12 Feb 2026".
+     * Only searches the first 1000 characters of body text to avoid false positives.
+     */
+    private function extractDateFromBodyText(string $html): ?Carbon
+    {
+        // Strip tags and get the first 1000 characters of body text
+        $body = strip_tags($html);
+        $body = html_entity_decode($body, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $body = substr($body, 0, 1000);
+
+        $months = 'Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?'
+            . '|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?';
+
+        // "Feb 12, 2026" or "February 12, 2026"
+        if (preg_match('/\b(' . $months . ')\s+(\d{1,2}),?\s+(\d{4})\b/', $body, $match)) {
+            return $this->tryParseDate($match[0]);
+        }
+
+        // "12 Feb 2026" or "12 February 2026"
+        if (preg_match('/\b(\d{1,2})\s+(' . $months . ')\s+(\d{4})\b/', $body, $match)) {
+            return $this->tryParseDate($match[0]);
         }
 
         return null;

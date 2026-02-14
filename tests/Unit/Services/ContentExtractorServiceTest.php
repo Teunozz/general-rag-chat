@@ -235,6 +235,64 @@ test('strips trailing boilerplate text from non-semantic html', function (): voi
         ->and($result['content'])->not->toContain('Privacy Statement');
 });
 
+test('extracts published_at from itemprop datePublished', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>Microdata Article</title></head>
+    <body>
+        <article>
+            <meta itemprop="datePublished" content="2025-11-05T09:00:00Z">
+            <p>This article uses microdata itemprop for its date. The content extractor should find and parse the datePublished itemprop from the meta element correctly.</p>
+            <p>Second paragraph to provide enough content for the readability parser to identify the main content area.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2025-11-05');
+    }
+});
+
+test('extracts published_at from news dateline in body text', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>News Wire Article</title></head>
+    <body>
+        <article>
+            <p>Kourou (AFP) Feb 12, 2026 - The most powerful version of a rocket carried 32 satellites into space. This is a substantial article about a rocket launch from a news wire service with a dateline format date.</p>
+            <p>The mission was considered a success as all satellites were deployed into their correct orbits, marking a milestone for the program.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2026-02-12');
+    }
+});
+
+test('extracts published_at from body text with day-first format', function (): void {
+    $html = <<<'HTML'
+    <html><head><title>European Date Format</title></head>
+    <body>
+        <article>
+            <p>12 February 2026 - Scientists announced a breakthrough discovery in quantum computing. The research team published findings that could revolutionize the field of computation and data processing.</p>
+            <p>The implications of this discovery extend to multiple industries including finance, healthcare, and artificial intelligence research.</p>
+        </article>
+    </body></html>
+    HTML;
+
+    $result = $this->service->extract($html);
+
+    if ($result !== null) {
+        expect($result['published_at'])->not->toBeNull()
+            ->and($result['published_at']->format('Y-m-d'))->toBe('2026-02-12');
+    }
+});
+
 test('returns null published_at when no date found', function (): void {
     $html = <<<'HTML_WRAP'
     <html><head><title>No Date</title></head>
