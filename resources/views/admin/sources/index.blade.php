@@ -34,7 +34,11 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse($sources as $source)
                         <tr>
-                            <td class="px-6 py-4 text-sm">{{ $source->name }}</td>
+                            <td class="px-6 py-4 text-sm">
+                                <a href="{{ route('admin.sources.edit', $source) }}" class="text-primary hover:text-primary-hover font-medium">
+                                    {{ $source->name }}
+                                </a>
+                            </td>
                             <td class="px-6 py-4 text-sm">
                                 <span class="px-2 py-1 rounded-full text-xs font-medium
                                     {{ $source->type === 'website' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : '' }}
@@ -61,24 +65,37 @@
                                 <p class="text-xs text-gray-400">Every {{ $source->refresh_interval }}m</p>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-sm space-x-2">
-                                <a href="{{ route('admin.sources.edit', $source) }}" class="text-primary hover:text-primary-hover">Edit</a>
-                                @if($source->type !== 'document')
-                                <form method="POST" action="{{ route('admin.sources.reindex', $source) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-blue-600 hover:text-blue-800">Re-index</button>
-                                </form>
-                                @endif
-                                <form method="POST" action="{{ route('admin.sources.rechunk', $source) }}" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-green-600 hover:text-green-800">Re-chunk</button>
-                                </form>
-                                <form method="POST" action="{{ route('admin.sources.destroy', $source) }}" class="inline"
-                                    x-data="confirmDelete" data-confirm-message="Delete this source and all its documents?" @submit.prevent="confirmAndSubmit">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800">Delete</button>
-                                </form>
+                            <td class="px-6 py-4 text-sm">
+                                <div class="flex items-center gap-2">
+                                    @if($source->type !== 'document')
+                                    <form method="POST" action="{{ route('admin.sources.reindex', $source) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" title="Re-crawl and re-extract content from this source"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors">
+                                            <x-heroicon-o-arrow-path class="w-3.5 h-3.5" />
+                                            Refresh
+                                        </button>
+                                    </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.sources.rechunk', $source) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" title="Re-split text and regenerate search embeddings"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-green-300 text-green-700 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/30 transition-colors">
+                                            <x-heroicon-o-cog-6-tooth class="w-3.5 h-3.5" />
+                                            Rebuild
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.sources.destroy', $source) }}" class="inline"
+                                        x-data="confirmDelete" data-confirm-message="Delete this source and all its documents?" @submit.prevent="confirmAndSubmit">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" title="Delete this source and all its data"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors">
+                                            <x-heroicon-o-trash class="w-3.5 h-3.5" />
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                         @empty

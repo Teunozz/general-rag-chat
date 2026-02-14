@@ -7,10 +7,10 @@
                 <h2 class="text-sm font-semibold">Conversations</h2>
                 <div class="flex items-center gap-1">
                     <a href="{{ route('chat.index') }}" class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="New chat">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <x-heroicon-o-plus class="w-5 h-5" />
                     </a>
                     <button @click="togglePanel()" class="md:hidden p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Close">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
             </div>
@@ -25,7 +25,7 @@
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="p-1 text-gray-400 hover:text-red-500" title="Delete">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <x-heroicon-o-trash class="w-4 h-4" />
                         </button>
                     </form>
                 </div>
@@ -62,7 +62,7 @@
                             @if($message->citations && count($message->citations) > 0)
                             <div class="mt-3" x-data="{ open: false }">
                                 <button @click="open = !open" class="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                    <x-heroicon-o-chevron-right class="w-4 h-4 transition-transform" ::class="{ 'rotate-90': open }" />
                                     {{ count($message->citations) }} source{{ count($message->citations) > 1 ? 's' : '' }}
                                 </button>
                                 <div x-show="open" x-cloak x-collapse class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">
@@ -96,7 +96,7 @@
                         <template x-if="citations.length > 0">
                             <div class="mt-3" x-data="{ open: false }">
                                 <button @click="open = !open" class="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                                    <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-90': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                    <x-heroicon-o-chevron-right class="w-4 h-4 transition-transform" ::class="{ 'rotate-90': open }" />
                                     <span x-text="citations.length + ' source' + (citations.length > 1 ? 's' : '')"></span>
                                 </button>
                                 <div x-show="open" x-cloak x-collapse class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 space-y-2">

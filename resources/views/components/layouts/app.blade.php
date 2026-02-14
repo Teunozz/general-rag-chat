@@ -37,11 +37,11 @@
                 {{-- Navigation --}}
                 <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                     <a href="{{ route('chat.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('chat.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                        <x-heroicon-o-chat-bubble-left-ellipsis class="w-5 h-5 mr-3 text-gray-400" />
                         Chat
                     </a>
                     <a href="{{ route('recaps.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('recaps.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <x-heroicon-o-document-text class="w-5 h-5 mr-3 text-gray-400" />
                         Recaps
                     </a>
 
@@ -49,15 +49,15 @@
                     <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                         <p class="px-3 text-xs font-semibold text-gray-400 uppercase">Admin</p>
                         <a href="{{ route('admin.sources.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.sources.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                            <x-heroicon-o-circle-stack class="w-5 h-5 mr-3 text-gray-400" />
                             Sources
                         </a>
                         <a href="{{ route('admin.users.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.users.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <x-heroicon-o-users class="w-5 h-5 mr-3 text-gray-400" />
                             Users
                         </a>
                         <a href="{{ route('admin.settings.edit') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.settings.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <x-heroicon-o-cog-6-tooth class="w-5 h-5 mr-3 text-gray-400" />
                             Settings
                         </a>
                     </div>
@@ -72,8 +72,8 @@
                     <div class="flex items-center space-x-2">
                         {{-- Theme toggle --}}
                         <button @click="darkMode = !darkMode" class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Toggle theme">
-                            <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-                            <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <x-heroicon-o-moon x-show="!darkMode" class="w-5 h-5" />
+                            <x-heroicon-o-sun x-show="darkMode" x-cloak class="w-5 h-5" />
                         </button>
                         <a href="{{ route('profile.edit') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Profile</a>
                         <form method="POST" action="{{ route('logout') }}" class="inline">
@@ -94,16 +94,16 @@
                 <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
                     <span class="text-lg font-semibold">{{ $appName }}</span>
                     <button @click="sidebarOpen = false" class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <x-heroicon-o-x-mark class="w-6 h-6" />
                     </button>
                 </div>
                 <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                     <a href="{{ route('chat.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('chat.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                        <x-heroicon-o-chat-bubble-left-ellipsis class="w-5 h-5 mr-3 text-gray-400" />
                         Chat
                     </a>
                     <a href="{{ route('recaps.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('recaps.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                        <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <x-heroicon-o-document-text class="w-5 h-5 mr-3 text-gray-400" />
                         Recaps
                     </a>
 
@@ -111,15 +111,15 @@
                     <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
                         <p class="px-3 text-xs font-semibold text-gray-400 uppercase">Admin</p>
                         <a href="{{ route('admin.sources.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.sources.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                            <x-heroicon-o-circle-stack class="w-5 h-5 mr-3 text-gray-400" />
                             Sources
                         </a>
                         <a href="{{ route('admin.users.index') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.users.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <x-heroicon-o-users class="w-5 h-5 mr-3 text-gray-400" />
                             Users
                         </a>
                         <a href="{{ route('admin.settings.edit') }}" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('admin.settings.*') ? 'bg-gray-100 dark:bg-gray-700' : '' }}">
-                            <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <x-heroicon-o-cog-6-tooth class="w-5 h-5 mr-3 text-gray-400" />
                             Settings
                         </a>
                     </div>
@@ -131,8 +131,8 @@
                     </div>
                     <div class="flex items-center space-x-2">
                         <button @click="darkMode = !darkMode" class="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300" title="Toggle theme">
-                            <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-                            <svg x-show="darkMode" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <x-heroicon-o-moon x-show="!darkMode" class="w-5 h-5" />
+                            <x-heroicon-o-sun x-show="darkMode" x-cloak class="w-5 h-5" />
                         </button>
                         <a href="{{ route('profile.edit') }}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Profile</a>
                     </div>
@@ -147,7 +147,7 @@
             @auth
             <header class="md:hidden flex items-center h-16 px-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <button @click="sidebarOpen = true" class="text-gray-500">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    <x-heroicon-o-bars-3 class="w-6 h-6" />
                 </button>
                 <span class="ml-4 text-lg font-semibold">{{ $appName }}</span>
             </header>
