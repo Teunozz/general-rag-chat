@@ -30,12 +30,8 @@
                     class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
             </div>
             <div x-data="{ requireMarkup: {{ $source->require_article_markup ? 'true' : 'false' }} }" class="mb-4">
-                <div class="flex items-center">
-                    <input type="checkbox" name="require_article_markup" value="1" {{ $source->require_article_markup ? 'checked' : '' }}
-                        x-model="requireMarkup"
-                        class="rounded border-gray-300 text-primary">
-                    <label class="ml-2 text-sm">Require JSON-LD article markup</label>
-                </div>
+                <x-toggle name="require_article_markup" value="1" :checked="$source->require_article_markup"
+                    x-model="requireMarkup" label="Require JSON-LD article markup" />
                 <div x-show="requireMarkup" x-cloak class="mt-2">
                     <label for="json_ld_types" class="block text-sm font-medium mb-1">Allowed JSON-LD Types</label>
                     <input type="text" name="json_ld_types" id="json_ld_types"
@@ -48,10 +44,16 @@
             @endif
 
             @if(in_array($source->type, ['rss', 'website']))
-            <div class="mb-4">
+            <div x-data="refreshToggle" data-refresh-enabled="{{ old('refresh_enabled', $source->refresh_interval !== null ? '1' : '') ? 'true' : 'false' }}" class="mb-4">
+                <div class="mb-2">
+                    <x-toggle name="refresh_enabled" value="1" x-model="enabled" label="Enable periodic refresh" />
+                </div>
                 <label for="refresh_interval" class="block text-sm font-medium mb-1">Refresh Interval (minutes)</label>
-                <input type="number" name="refresh_interval" id="refresh_interval" value="{{ old('refresh_interval', $source->refresh_interval) }}" min="{{ $source->type === 'website' ? 15 : 5 }}"
-                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                <input type="number" name="refresh_interval" id="refresh_interval"
+                    value="{{ old('refresh_interval', $source->refresh_interval) }}"
+                    min="{{ $source->type === 'website' ? 15 : 5 }}"
+                    x-bind:disabled="!enabled"
+                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
             </div>
             @endif
 

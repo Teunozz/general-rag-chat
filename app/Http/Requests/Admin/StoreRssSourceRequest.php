@@ -18,7 +18,8 @@ class StoreRssSourceRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'url' => ['required', 'url', 'max:2048', new SafeUrl()],
-            'refresh_interval' => ['nullable', 'integer', 'min:5'],
+            'refresh_enabled' => ['sometimes', 'boolean'],
+            'refresh_interval' => ['nullable', 'required_if:refresh_enabled,1', 'integer', 'min:5'],
         ];
     }
 }

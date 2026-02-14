@@ -80,10 +80,7 @@
                                     <input type="number" name="max_full_doc_characters" value="{{ $chat['max_full_doc_characters'] ?? 10000 }}" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
                                 </div>
                             </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" name="query_enrichment_enabled" value="1" {{ ($chat['query_enrichment_enabled'] ?? false) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
-                                <label class="ml-2 text-sm">Enable Query Enrichment</label>
-                            </div>
+                            <x-toggle name="query_enrichment_enabled" value="1" :checked="$chat['query_enrichment_enabled'] ?? false" label="Enable Query Enrichment" />
                             <div>
                                 <label class="block text-sm font-medium mb-1">Enrichment Prompt</label>
                                 <textarea name="enrichment_prompt" rows="6" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono">{{ $chat['enrichment_prompt'] ?? $chatDefaults['enrichment_prompt'] }}</textarea>
@@ -133,9 +130,8 @@
 
                         @foreach(['daily', 'weekly', 'monthly'] as $type)
                         <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                            <div class="flex items-center mb-2">
-                                <input type="checkbox" name="{{ $type }}_enabled" value="1" {{ ($recap["{$type}_enabled"] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
-                                <label class="ml-2 text-sm font-medium capitalize">{{ $type }} Recap</label>
+                            <div class="mb-2">
+                                <x-toggle name="{{ $type }}_enabled" value="1" :checked="$recap['{$type}_enabled'] ?? true" label="{{ ucfirst($type) }} Recap" />
                             </div>
                             <div class="grid grid-cols-2 gap-4 ml-6">
                                 @if($type === 'daily')
@@ -174,10 +170,7 @@
                     <form method="POST" action="{{ route('admin.settings.email') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                         @csrf @method('PUT')
                         <h2 class="text-lg font-semibold mb-4">Email Settings</h2>
-                        <div class="flex items-center">
-                            <input type="checkbox" name="system_enabled" value="1" {{ ($email['system_enabled'] ?? true) ? 'checked' : '' }} class="rounded border-gray-300 text-primary">
-                            <label class="ml-2 text-sm">Enable email notifications system-wide</label>
-                        </div>
+                        <x-toggle name="system_enabled" value="1" :checked="$email['system_enabled'] ?? true" label="Enable email notifications system-wide" />
                         <button type="submit" class="mt-4 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium">Save</button>
                     </form>
                     <form method="POST" action="{{ route('admin.settings.email.test') }}" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">

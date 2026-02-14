@@ -69,6 +69,10 @@ class SourceController extends Controller
             'min_content_length', 'require_article_markup', 'json_ld_types',
         ]);
 
+        if (in_array($source->type, ['rss', 'website']) && !$request->boolean('refresh_enabled')) {
+            $data['refresh_interval'] = null;
+        }
+
         if (array_key_exists('json_ld_types', $data)) {
             $data['json_ld_types'] = $this->parseJsonLdTypes($data['json_ld_types']);
         }
@@ -130,7 +134,7 @@ class SourceController extends Controller
 
     private function storeWebsite(StoreWebsiteSourceRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
+        $validated = $request->safe()->except(['refresh_enabled']);
         $validated['json_ld_types'] = $this->parseJsonLdTypes($validated['json_ld_types'] ?? null);
 
         $source = Source::create([
@@ -147,7 +151,7 @@ class SourceController extends Controller
     private function storeRss(StoreRssSourceRequest $request): RedirectResponse
     {
         $source = Source::create([
-            ...$request->validated(),
+            ...$request->safe()->except(['refresh_enabled']),
             'type' => 'rss',
             'status' => 'pending',
         ]);

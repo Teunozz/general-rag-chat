@@ -22,7 +22,8 @@ class StoreWebsiteSourceRequest extends FormRequest
             'min_content_length' => ['required', 'integer', 'min:0'],
             'require_article_markup' => ['boolean'],
             'json_ld_types' => ['nullable', 'string', 'max:500'],
-            'refresh_interval' => ['nullable', 'integer', 'min:15'],
+            'refresh_enabled' => ['sometimes', 'boolean'],
+            'refresh_interval' => ['nullable', 'required_if:refresh_enabled,1', 'integer', 'min:15'],
         ];
     }
 }

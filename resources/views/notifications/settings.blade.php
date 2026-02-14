@@ -7,33 +7,15 @@
             @method('PUT')
 
             <div class="space-y-4">
-                <div class="flex items-center">
-                    <input type="checkbox" name="email_enabled" value="1" {{ $preferences->email_enabled ? 'checked' : '' }}
-                        class="rounded border-gray-300 text-primary">
-                    <label class="ml-2 text-sm font-medium">Enable email notifications</label>
-                </div>
+                <x-toggle name="email_enabled" value="1" :checked="$preferences->email_enabled" label="Enable email notifications" />
 
                 <hr class="border-gray-200 dark:border-gray-700">
 
                 <p class="text-sm font-medium text-gray-500">Recap Emails</p>
 
-                <div class="flex items-center">
-                    <input type="checkbox" name="daily_recap" value="1" {{ $preferences->daily_recap ? 'checked' : '' }}
-                        class="rounded border-gray-300 text-primary">
-                    <label class="ml-2 text-sm">Daily recap</label>
-                </div>
-
-                <div class="flex items-center">
-                    <input type="checkbox" name="weekly_recap" value="1" {{ $preferences->weekly_recap ? 'checked' : '' }}
-                        class="rounded border-gray-300 text-primary">
-                    <label class="ml-2 text-sm">Weekly recap</label>
-                </div>
-
-                <div class="flex items-center">
-                    <input type="checkbox" name="monthly_recap" value="1" {{ $preferences->monthly_recap ? 'checked' : '' }}
-                        class="rounded border-gray-300 text-primary">
-                    <label class="ml-2 text-sm">Monthly recap</label>
-                </div>
+                <x-toggle name="daily_recap" value="1" :checked="$preferences->daily_recap" label="Daily recap" />
+                <x-toggle name="weekly_recap" value="1" :checked="$preferences->weekly_recap" label="Weekly recap" />
+                <x-toggle name="monthly_recap" value="1" :checked="$preferences->monthly_recap" label="Monthly recap" />
             </div>
 
             <button type="submit" class="mt-6 w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">

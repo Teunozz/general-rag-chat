@@ -31,10 +31,8 @@
                             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                     </div>
 
-                    <div class="mb-6 flex items-center">
-                        <input type="checkbox" name="remember" id="remember"
-                            class="rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary">
-                        <label for="remember" class="ml-2 text-sm">Remember me</label>
+                    <div class="mb-6">
+                        <x-toggle name="remember" id="remember" label="Remember me" />
                     </div>
 
                     <button type="submit"

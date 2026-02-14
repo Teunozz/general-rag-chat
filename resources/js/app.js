@@ -334,6 +334,20 @@ Alpine.data('modelPicker', () => ({
     },
 }));
 
+Alpine.data('refreshToggle', () => ({
+    enabled: false,
+
+    init() {
+        this.enabled = this.$el.dataset.refreshEnabled === 'true';
+        this.$watch('enabled', (val) => {
+            if (!val) {
+                const input = this.$el.querySelector('input[type="number"]');
+                if (input) input.value = '';
+            }
+        });
+    },
+}));
+
 Alpine.data('confirmDelete', () => ({
     confirmMessage: '',
 
