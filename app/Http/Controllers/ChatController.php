@@ -8,7 +8,6 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Services\RagContextBuilder;
 use App\Services\SystemSettingsService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -151,33 +150,6 @@ class ChatController extends Controller
             'Cache-Control' => 'no-cache',
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',
-        ]);
-    }
-
-    public function search(Request $request, RagContextBuilder $ragBuilder): JsonResponse
-    {
-        $request->validate([
-            'query' => ['required', 'string', 'max:10000'],
-            'source_ids' => ['nullable', 'array'],
-            'source_ids.*' => ['integer', 'exists:sources,id'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ]);
-
-        $chunks = $ragBuilder->rawSearch(
-            $request->input('query'),
-            $request->input('source_ids'),
-            $request->input('limit', 20),
-        );
-
-        return response()->json([
-            'results' => $chunks->map(fn ($chunk): array => [
-                'chunk_id' => $chunk->id,
-                'content' => $chunk->content,
-                'score' => $chunk->neighbor_distance ?? null,
-                'document_title' => $chunk->document->title,
-                'document_url' => $chunk->document->url,
-                'source_name' => $chunk->document->source->name,
-            ]),
         ]);
     }
 

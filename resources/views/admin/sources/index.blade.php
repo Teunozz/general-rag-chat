@@ -11,10 +11,23 @@
                     Auto-refreshing
                 </span>
             </div>
-            <a href="{{ route('admin.sources.create') }}"
-                class="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                Add Source
-            </a>
+            <div class="flex items-center gap-2">
+                @if($sources->contains('status', 'ready'))
+                <form method="POST" action="{{ route('admin.sources.rechunk-all') }}"
+                    x-data="confirmDelete" data-confirm-message="Rechunk all ready sources? This will regenerate embeddings for every document." @submit.prevent="confirmAndSubmit">
+                    @csrf
+                    <button type="submit" title="Re-split text and regenerate search embeddings for all ready sources"
+                        class="inline-flex items-center gap-1 border border-green-300 text-green-700 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        <x-heroicon-o-cog-6-tooth class="w-4 h-4" />
+                        Rebuild All
+                    </button>
+                </form>
+                @endif
+                <a href="{{ route('admin.sources.create') }}"
+                    class="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    Add Source
+                </a>
+            </div>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">

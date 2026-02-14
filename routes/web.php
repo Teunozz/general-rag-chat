@@ -26,12 +26,9 @@ Route::middleware(['auth', 'force.password.change'])->group(function (): void {
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::get('/chat/{conversation}', [ChatController::class, 'show'])->name('chat.show');
     Route::post('/chat/{conversation}/stream', [ChatController::class, 'stream'])->name('chat.stream');
-    Route::post('/chat/search', [ChatController::class, 'search'])->name('chat.search');
 
     // Conversations
-    Route::get('/conversations', fn () => redirect()->route('chat.index'))->name('conversations.index');
     Route::post('/conversations', [ConversationController::class, 'store'])->name('conversations.store');
-    Route::put('/conversations/{conversation}', [ConversationController::class, 'update'])->name('conversations.update');
     Route::delete('/conversations/{conversation}', [ConversationController::class, 'destroy'])->name('conversations.destroy');
 
     // Recaps
