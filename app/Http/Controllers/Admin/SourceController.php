@@ -47,7 +47,7 @@ class SourceController extends Controller
         $path = $file->store('uploads');
 
         $source = Source::create([
-            'name' => $request->input('name', pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)),
+            'name' => $request->input('name') ?? pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
             'type' => 'document',
             'status' => 'pending',
         ]);

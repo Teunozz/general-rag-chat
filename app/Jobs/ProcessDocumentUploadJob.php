@@ -39,7 +39,10 @@ class ProcessDocumentUploadJob implements ShouldQueue
             $text = match ($extension) {
                 'txt', 'md' => $content,
                 'html', 'htm' => $this->extractHtml($content),
-                default => $content, // Fallback to raw content
+                'pdf' => $this->extractPdf($content),
+                'docx' => $this->extractDocx(Storage::path($this->filePath)),
+                'doc' => $this->extractDoc(Storage::path($this->filePath)),
+                default => $content,
             };
 
             if (empty($text)) {
@@ -87,5 +90,51 @@ class ProcessDocumentUploadJob implements ShouldQueue
         $result = $extractor->extract($html);
 
         return $result ? $result['content'] : strip_tags($html);
+    }
+
+    private function extractPdf(string $content): string
+    {
+        $parser = new \Smalot\PdfParser\Parser();
+        $pdf = $parser->parseContent($content);
+
+        return $pdf->getText();
+    }
+
+    private function extractDocx(string $path): string
+    {
+        $phpWord = \PhpOffice\PhpWord\IOFactory::load($path, 'Word2007');
+        $text = [];
+
+        foreach ($phpWord->getSections() as $section) {
+            foreach ($section->getElements() as $element) {
+                if (method_exists($element, 'getText')) {
+                    $elementText = $element->getText();
+                    if (is_string($elementText)) {
+                        $text[] = $elementText;
+                    }
+                }
+            }
+        }
+
+        return implode("\n", $text);
+    }
+
+    private function extractDoc(string $path): string
+    {
+        $phpWord = \PhpOffice\PhpWord\IOFactory::load($path, 'MsDoc');
+        $text = [];
+
+        foreach ($phpWord->getSections() as $section) {
+            foreach ($section->getElements() as $element) {
+                if (method_exists($element, 'getText')) {
+                    $elementText = $element->getText();
+                    if (is_string($elementText)) {
+                        $text[] = $elementText;
+                    }
+                }
+            }
+        }
+
+        return implode("\n", $text);
     }
 }

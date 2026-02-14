@@ -17,8 +17,10 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "pgvector/pgvector": "^0.2.2",
+        "phpoffice/phpword": "^1.4",
         "roach-php/core": "^3.2",
         "roach-php/laravel": "^3.2",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-ciphersweet": "^1.7"
     },
     "require-dev": {
