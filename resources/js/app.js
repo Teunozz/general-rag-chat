@@ -92,7 +92,7 @@ Alpine.data('chatApp', () => ({
 
         this.$watch('renderedContent', (html) => {
             if (this.$refs.streamContent) {
-                this.$refs.streamContent.innerHTML = html || '<span class="text-gray-400">Thinking...</span>';
+                this.$refs.streamContent.innerHTML = html || '<div class="thinking-skeleton" aria-label="Thinking"><div class="thinking-skeleton-line thinking-skeleton-line-wide"></div><div class="thinking-skeleton-line thinking-skeleton-line-mid"></div><div class="thinking-skeleton-line thinking-skeleton-line-short"></div></div>';
             }
             if (this._scrollLockTarget !== null) {
                 const c = document.getElementById('messages-container');

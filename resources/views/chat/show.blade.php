@@ -92,7 +92,7 @@
                 {{-- Streaming response --}}
                 <div x-show="isStreaming || streamedContent" x-cloak class="max-w-3xl mx-auto">
                     <div class="bg-white dark:bg-gray-800 rounded-lg px-4 py-3 max-w-2xl shadow-sm">
-                        <div class="prose dark:prose-invert prose-sm max-w-none" x-ref="streamContent"><span class="text-gray-400">Thinking...</span></div>
+                        <div class="prose dark:prose-invert prose-sm max-w-none" x-ref="streamContent"><div class="thinking-skeleton" aria-label="Thinking"><div class="thinking-skeleton-line thinking-skeleton-line-wide"></div><div class="thinking-skeleton-line thinking-skeleton-line-mid"></div><div class="thinking-skeleton-line thinking-skeleton-line-short"></div></div></div>
                         <template x-if="citations.length > 0">
                             <div class="mt-3" x-data="{ open: false }">
                                 <button @click="open = !open" class="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
