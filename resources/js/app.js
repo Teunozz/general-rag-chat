@@ -38,6 +38,11 @@ function replaceCitationRefs(html, citations) {
     if (!tpl) return html;
     const pillTemplate = tpl.innerHTML.trim();
 
+    // Normalize "[5, 8, 9]" → "[5][8][9]"
+    html = html.replace(/\[(\d+(?:\s*,\s*\d+)+)\]/g, (match, nums) =>
+        nums.split(',').map(n => '[' + n.trim() + ']').join('')
+    );
+
     return html.replace(/\[(\d+)\]/g, (match, num) => {
         const citation = citations.find(c => c.number === parseInt(num, 10));
         if (!citation || !citation.document_url) return match;

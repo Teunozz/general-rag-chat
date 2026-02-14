@@ -182,6 +182,14 @@ class ChatController extends Controller
             'source' => '__PILL_SOURCE__',
         ])->render();
 
+        // Normalize "[5, 8, 9]" → "[5][8][9]" before matching individual citations
+        $html = (string) preg_replace_callback('/\[(\d+(?:\s*,\s*\d+)+)\]/', function (array $matches): string {
+            return implode('', array_map(
+                fn (string $n): string => '[' . trim($n) . ']',
+                explode(',', $matches[1]),
+            ));
+        }, $html);
+
         return (string) preg_replace_callback('/\[(\d+)\]/', function (array $matches) use ($citationsByNumber, $pillTemplate): string {
             $number = (int) $matches[1];
 

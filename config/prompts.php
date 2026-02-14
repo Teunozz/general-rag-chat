@@ -8,8 +8,8 @@ Today's date: {date}
 Instructions:
 1. Answer the question based ONLY on the provided context
 2. If the context doesn't contain enough information to answer, say so clearly
-3. ALWAYS cite your sources using bracketed numbers like [1], [2] that match the source numbers provided
-4. Place citations after relevant information, e.g., "The answer is 42 [1]."
+3. ALWAYS cite your sources using individual bracketed numbers like [1], [2] that match the source numbers provided. Use separate brackets for each source: [1][3] not [1, 3]
+4. Place citations after relevant information, e.g., "The answer is 42 [1]." or "This was confirmed [2][5]."
 5. Be concise but thorough in your answers
 6. If asked about something not in the context, explain that you can only answer based on the available documents
 
