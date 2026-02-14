@@ -36,26 +36,41 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-500">{{ $user->created_at->format('M j, Y') }}</td>
-                        <td class="px-6 py-4 text-sm space-x-2">
+                        <td class="px-6 py-4 text-sm">
                             @if($user->id !== auth()->id())
-                            <form method="POST" action="{{ route('admin.users.role', $user) }}" class="inline">
-                                @csrf @method('PUT')
-                                <input type="hidden" name="role" value="{{ $user->role === 'admin' ? 'user' : 'admin' }}">
-                                <button type="submit" class="text-purple-600 hover:text-purple-800">
-                                    {{ $user->role === 'admin' ? 'Demote' : 'Promote' }}
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('admin.users.status', $user) }}" class="inline">
-                                @csrf @method('PUT')
-                                <button type="submit" class="text-yellow-600 hover:text-yellow-800">
-                                    {{ $user->is_active ? 'Deactivate' : 'Activate' }}
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline"
-                                x-data="confirmDelete" data-confirm-message="Delete this user and all their data? This cannot be undone." @submit.prevent="confirmAndSubmit">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800">Delete</button>
-                            </form>
+                            <div class="flex items-center gap-2">
+                                <form method="POST" action="{{ route('admin.users.role', $user) }}" class="inline">
+                                    @csrf @method('PUT')
+                                    <input type="hidden" name="role" value="{{ $user->role === 'admin' ? 'user' : 'admin' }}">
+                                    <button type="submit" title="{{ $user->role === 'admin' ? 'Demote to user' : 'Promote to admin' }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/30 transition-colors">
+                                        <x-heroicon-o-arrow-up-circle class="w-3.5 h-3.5 {{ $user->role === 'admin' ? 'rotate-180' : '' }}" />
+                                        {{ $user->role === 'admin' ? 'Demote' : 'Promote' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.users.status', $user) }}" class="inline">
+                                    @csrf @method('PUT')
+                                    <button type="submit" title="{{ $user->is_active ? 'Deactivate user' : 'Activate user' }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-600 dark:text-yellow-400 dark:hover:bg-yellow-900/30 transition-colors">
+                                        @if($user->is_active)
+                                            <x-heroicon-o-no-symbol class="w-3.5 h-3.5" />
+                                            Deactivate
+                                        @else
+                                            <x-heroicon-o-check-circle class="w-3.5 h-3.5" />
+                                            Activate
+                                        @endif
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline"
+                                    x-data="confirmDelete" data-confirm-message="Delete this user and all their data? This cannot be undone." @submit.prevent="confirmAndSubmit">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" title="Delete this user and all their data"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors">
+                                        <x-heroicon-o-trash class="w-3.5 h-3.5" />
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
                             @else
                             <span class="text-gray-400 text-xs">Current user</span>
                             @endif

@@ -181,5 +181,34 @@
             </main>
         </div>
     </div>
+    {{-- Confirm modal --}}
+    <div x-data="confirmModal">
+        <template x-teleport="body">
+            <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+                <div class="fixed inset-0 bg-black/50" @click="cancel"></div>
+                <div x-show="open" x-transition class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                            <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-semibold">Are you sure?</h3>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400" x-text="message"></p>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button @click="cancel" type="button"
+                            class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="confirm" type="button"
+                            class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors">
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
 </body>
 </html>

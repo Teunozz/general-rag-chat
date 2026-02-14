@@ -35,11 +35,10 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Type</th>
+                            <th class="w-10 pl-6 pr-0 py-3"></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Docs</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Chunks</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Last Indexed</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                         </tr>
@@ -47,17 +46,19 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         @forelse($sources as $source)
                         <tr>
-                            <td class="px-6 py-4 text-sm">
+                            <td class="pl-6 pr-0 py-4" title="{{ ucfirst($source->type) }}">
+                                @if($source->type === 'website')
+                                    <x-heroicon-o-globe-alt class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                                @elseif($source->type === 'rss')
+                                    <x-heroicon-o-rss class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                                @else
+                                    <x-heroicon-o-document-text class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                                @endif
+                            </td>
+                            <td class="px-4 py-4 text-sm">
                                 <a href="{{ route('admin.sources.edit', $source) }}" class="text-primary hover:text-primary-hover font-medium">
                                     {{ $source->name }}
                                 </a>
-                            </td>
-                            <td class="px-6 py-4 text-sm">
-                                <span class="px-2 py-1 rounded-full text-xs font-medium
-                                    {{ $source->type === 'website' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : '' }}
-                                    {{ $source->type === 'rss' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' : '' }}
-                                    {{ $source->type === 'document' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : '' }}
-                                ">{{ $source->type }}</span>
                             </td>
                             <td class="px-6 py-4 text-sm">
                                 <span class="px-2 py-1 rounded-full text-xs font-medium
@@ -71,7 +72,6 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-sm">{{ $source->document_count }}</td>
-                            <td class="px-6 py-4 text-sm">{{ $source->chunk_count }}</td>
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ $source->last_indexed_at?->diffForHumans() ?? 'Never' }}
                                 @if($source->refresh_interval)
@@ -113,7 +113,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-gray-500">No sources added yet.</td>
+                            <td colspan="6" class="px-6 py-8 text-center text-gray-500">No sources added yet.</td>
                         </tr>
                         @endforelse
                     </tbody>

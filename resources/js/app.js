@@ -348,6 +348,37 @@ Alpine.data('refreshToggle', () => ({
     },
 }));
 
+Alpine.data('confirmModal', () => ({
+    open: false,
+    message: '',
+    pendingForm: null,
+
+    init() {
+        window.addEventListener('confirm-action', (e) => {
+            this.message = e.detail.message;
+            this.pendingForm = e.detail.form;
+            this.open = true;
+        });
+    },
+
+    confirm() {
+        if (this.pendingForm) {
+            this.pendingForm.submit();
+        }
+        this.close();
+    },
+
+    cancel() {
+        this.close();
+    },
+
+    close() {
+        this.open = false;
+        this.pendingForm = null;
+        this.message = '';
+    },
+}));
+
 Alpine.data('confirmDelete', () => ({
     confirmMessage: '',
 
@@ -356,9 +387,9 @@ Alpine.data('confirmDelete', () => ({
     },
 
     confirmAndSubmit() {
-        if (confirm(this.confirmMessage)) {
-            this.$el.submit();
-        }
+        window.dispatchEvent(new CustomEvent('confirm-action', {
+            detail: { message: this.confirmMessage, form: this.$el },
+        }));
     },
 }));
 
