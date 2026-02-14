@@ -64,6 +64,13 @@
                         class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm"></textarea>
                 </div>
 
+                <div class="mb-4">
+                    <label for="website_refresh_interval" class="block text-sm font-medium mb-1">Refresh Interval (minutes, optional)</label>
+                    <input type="number" name="refresh_interval" id="website_refresh_interval" min="15" placeholder="1440"
+                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
+                    <p class="mt-1 text-xs text-gray-500">How often to re-crawl this website. Leave empty to disable auto-refresh.</p>
+                </div>
+
                 <button type="submit" class="w-full bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors">
                     Add Website Source
                 </button>

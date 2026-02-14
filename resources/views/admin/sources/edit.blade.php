@@ -47,10 +47,10 @@
             </div>
             @endif
 
-            @if($source->type === 'rss')
+            @if(in_array($source->type, ['rss', 'website']))
             <div class="mb-4">
                 <label for="refresh_interval" class="block text-sm font-medium mb-1">Refresh Interval (minutes)</label>
-                <input type="number" name="refresh_interval" id="refresh_interval" value="{{ old('refresh_interval', $source->refresh_interval) }}" min="5"
+                <input type="number" name="refresh_interval" id="refresh_interval" value="{{ old('refresh_interval', $source->refresh_interval) }}" min="{{ $source->type === 'website' ? 15 : 5 }}"
                     class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm">
             </div>
             @endif

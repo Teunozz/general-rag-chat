@@ -57,6 +57,9 @@
                             <td class="px-6 py-4 text-sm">{{ $source->chunk_count }}</td>
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ $source->last_indexed_at?->diffForHumans() ?? 'Never' }}
+                                @if($source->refresh_interval)
+                                <p class="text-xs text-gray-400">Every {{ $source->refresh_interval }}m</p>
+                                @endif
                             </td>
                             <td class="px-6 py-4 text-sm space-x-2">
                                 <a href="{{ route('admin.sources.edit', $source) }}" class="text-primary hover:text-primary-hover">Edit</a>
